@@ -182,3 +182,25 @@
 
 - Use enhanced for loop when index is not needed.
 - Do not use foreach for modifying the collection (use Iterator or `removeIf`).
+
+## Anti-Patterns
+
+```java
+// WRONG: Catching Exception broadly
+catch (Exception e) { }
+
+// WRONG: String concatenation in log
+log.info("User " + userId + " logged in");
+```
+
+## Corrected Patterns
+
+```java
+// CORRECT: Catch specific exception
+catch (IOException e) {
+    log.error("IO error reading file: {}", filePath, e);
+}
+
+// CORRECT: Parameterized logging
+log.info("User {} logged in", userId);
+```

@@ -139,3 +139,36 @@
 
 - Prefer `CompletableFuture` over raw `Future` for composing async operations.
 - Always specify an executor instead of using the common `ForkJoinPool.commonPool()`.
+
+## Anti-Patterns
+
+```java
+// WRONG: Executors for thread pools
+ExecutorService pool = Executors.newFixedThreadPool(10);
+
+// WRONG: SimpleDateFormat as static field
+private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+// WRONG: foreach with remove
+for (String item : list) {
+    list.remove(item);
+}
+```
+
+## Corrected Patterns
+
+```java
+// CORRECT: ThreadPoolExecutor directly
+ExecutorService pool = new ThreadPoolExecutor(
+    10, 10, 60L, TimeUnit.SECONDS,
+    new LinkedBlockingQueue<>(1000),
+    new ThreadFactoryBuilder().setNameFormat("pool-%d").build(),
+    new ThreadPoolExecutor.CallerRunsPolicy()
+);
+
+// CORRECT: DateTimeFormatter (thread-safe)
+private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+// CORRECT: Iterator for removal
+list.removeIf(item -> condition);
+```

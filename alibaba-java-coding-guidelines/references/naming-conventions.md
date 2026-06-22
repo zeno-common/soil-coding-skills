@@ -102,3 +102,17 @@
   - Counter-example: `String name` vs `String Name`
 - Avoid using generic names like `key`, `value`, `item` in Map/Set.
 - Do not use mixed naming conventions within the same codebase.
+
+## Anti-Patterns
+
+```java
+// WRONG: is prefix for boolean POJO field
+private boolean isSuccess;
+```
+
+## Corrected Patterns
+
+```java
+// CORRECT: No is prefix for boolean
+private boolean success;
+```

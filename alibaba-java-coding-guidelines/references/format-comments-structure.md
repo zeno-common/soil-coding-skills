@@ -189,3 +189,17 @@ com.company.project
 - Use configuration files (application.yml) for environment-specific values.
 - Do not hardcode configuration values in code.
 - Use Spring profiles for different environments (dev, test, prod).
+
+## Anti-Patterns
+
+```java
+// WRONG: Magic number
+if (status == 3) { ... }
+```
+
+## Corrected Patterns
+
+```java
+// CORRECT: Named constant
+if (status == OrderStatus.COMPLETED) { ... }
+```

@@ -111,3 +111,19 @@
 ## 18. ThreadLocal
 
 - Call `remove()` on ThreadLocal after use to prevent memory leaks, especially in thread pools.
+
+## Anti-Patterns
+
+```java
+// WRONG: NPE-prone equals
+name.equals("test");
+```
+
+## Corrected Patterns
+
+```java
+// CORRECT: Null-safe equals
+Objects.equals(name, "test");
+// or
+"test".equals(name);
+```
