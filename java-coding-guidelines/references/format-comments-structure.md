@@ -24,38 +24,14 @@
 
 ## Project Structure
 
-### Layering
-```
-Controller/Facade → Service(Impl) → Manager → DAO/Mapper → Database
-```
+Layering: `Controller/Facade → Service(Impl) → Manager → DAO/Mapper → Database`
 
-### Layer Naming
-| Layer | Suffix | Example |
-|-------|--------|---------|
-| Controller | `Controller` | `UserController` |
-| Service Interface | `Service` | `UserService` |
-| Service Impl | `ServiceImpl` | `UserServiceImpl` |
-| Manager | `Manager` | `UserManager` |
-| DAO | `DAO`/`Mapper` | `UserDAO` |
+Layer naming: Controller→`XxxController`, Service→`XxxService`, ServiceImpl→`XxxServiceImpl`, Manager→`XxxManager`, DAO→`XxxDAO`/`XxxMapper`.
 
-### Domain Model Suffixes
-| Model | Suffix | Purpose |
-|-------|--------|---------|
-| Data Object | `DO` | DB table mapping |
-| Data Transfer | `DTO` | Cross-layer transfer |
-| View | `VO` | Presentation data |
-| Business | `BO` | Business logic |
-| Query | `QO` | Query params |
+Domain model suffixes: DO (DB table mapping), DTO (cross-layer transfer), VO (presentation), BO (business logic), QO (query params).
 
-### Package Layout
-```
-com.company.project/
-  controller/   service/impl/   manager/   dao/
-  model/{entity,dto,vo,qo}/
-  config/   common/{constant,enums,exception,util}/   interceptor/
-```
+Package layout: `controller/ service/impl/ manager/ dao/ model/{entity,dto,vo,qo}/ config/ common/{constant,enums,exception,util}/ interceptor/`
 
-### Rules
 17. Dependencies flow downward only. No circular deps. No Controller→DAO bypass.
 18. Exception handling per layer: Controller → HTTP response; Service → BusinessException; Manager → wrap third-party; DAO → DAOException.
 19. Config via `application.yml`. No hardcoded values. Spring profiles for environments.
