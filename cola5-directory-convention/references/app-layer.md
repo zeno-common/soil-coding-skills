@@ -37,69 +37,46 @@ App 模块定义 Cmd / Qry / VO 三种对象类型，供 adapter 层使用。详
 
 ### 职责边界
 
-- 对外暴露用例方法，是 Adapter 层的调用入口
-- 编排领域服务、Executor、Processor
-- 事务边界控制（`@Transactional`）
-- 持久化成功后发布领域事件
-- **禁止**包含业务规则判断
-- **禁止**直接操作数据库
-
+- 对外暴露用例方法（Adapter 层的调用入口）、编排领域服务/Executor/Processor
+- 事务边界控制（`@Transactional`）、持久化成功后发布领域事件
+- **禁止**包含业务规则判断 / 直接操作数据库
 
 > **事件发布时机**：必须在聚合根持久化成功（`save`）之后才发布事件，确保消费者查询时数据已落库。发布后调用 `clearEvents()` 避免重复发布。
 
 ## executor/command 包
 
-### 命名规约
-
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | Command Executor | `{Action}{Resource}CmdExe` | `OrderCreateCmdExe` |
 
-### 职责边界
-
-- 接收 Cmd 对象，转换为领域对象
-- 调用领域服务或 Gateway 完成写操作
-- 将领域对象转换为 VO 返回
+- 接收 Cmd → 转换为领域对象 → 调用领域服务或 Gateway → 转换为 VO 返回
 - 一个 CmdExe 对应一个写操作用例
 
 ## executor/query 包
-
-### 命名规约
 
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | Query Executor | `{Action}{Resource}QryExe` | `OrderListQryExe` |
 
-### 职责边界
-
-- 接收 Qry 对象
-- 查询操作可绕过领域层直接调用 infrastructure 的查询 Gateway
-- 组装分页响应
+- 接收 Qry → 可绕过领域层直接调用 infrastructure 的查询 Gateway → 组装分页响应
 - 一个 QryExe 对应一个读操作用例
 
 ## processor 包（可选）
-
-### 命名规约
 
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | Processor | `{ProcessDescription}Processor` | `OrderCreateProcessor` |
 
-### 职责边界
-
-- 当用例流程复杂（多步骤编排）时，从 Service 中抽取
-- 编排多个领域服务调用
-- **禁止**包含业务规则，仅做流程控制
+当用例流程复杂（多步骤编排）时，从 Service 中抽取。编排多个领域服务调用，**禁止**包含业务规则。
 
 ## Mandatory 规则
 
 1. Application Service 命名必须以 `ApplicationService` 结尾
-2. Command Executor 命名必须以 `CmdExe` 结尾
-3. Query Executor 命名必须以 `QryExe` 结尾
-4. App 层**禁止**包含业务规则，业务规则必须在 domain 层
-5. 事务注解 `@Transactional` 只能出现在 Application Service 上
-6. CmdExe / QryExe 不得互相调用
-7. App 层**禁止**直接依赖 infrastructure 模块的具体实现类
+2. Command Executor 命名必须以 `CmdExe` 结尾，Query Executor 命名必须以 `QryExe` 结尾
+3. App 层**禁止**包含业务规则，业务规则必须在 domain 层
+4. 事务注解 `@Transactional` 只能出现在 Application Service 上
+5. CmdExe / QryExe 不得互相调用
+6. App 层**禁止**直接依赖 infrastructure 模块的具体实现类
 
 ## Recommended 规则
 

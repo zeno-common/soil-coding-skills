@@ -26,25 +26,22 @@ entity
 
 ### 命名规约
 
-| 类别 | 命名格式 | 示例 |
-|------|---------|------|
-| 聚合根 | `{BusinessConcept}` | `Order` |
-| 实体 | `{BusinessConcept}` | `OrderItem` |
-| 值对象 | `{BusinessConcept}V` | `MoneyV`, `AddressV` |
+| 类别 | 命名格式 | 示例 | 区分方式 |
+|------|---------|------|---------|
+| 聚合根 | `{BusinessConcept}` | `Order` | 继承 `AggregateRoot`，有独立 Gateway |
+| 实体 | `{BusinessConcept}` | `OrderItem` | 被聚合根持有，有标识 |
+| 值对象 | `{BusinessConcept}V` | `MoneyV`, `AddressV` | 不可变，无标识，按属性判等 |
 
 ### 职责边界
 
-- 封装业务规则和业务逻辑
-- 聚合根保护内部一致性
-- 值对象不可变（无 setter）
-- **禁止**依赖 Spring 框架注解
-- **禁止**依赖任何基础设施（数据库、缓存、MQ）
+- 封装业务规则和业务逻辑，聚合根保护内部一致性
+- 值对象不可变（无 setter，所有字段 final）
+- **禁止**依赖 Spring 框架注解 / 任何基础设施（数据库、缓存、MQ）
 
 ### 代码示例
 
 ```java
 public class Order extends AggregateRoot {
-
     private String orderId;
     private List<OrderItem> items;
     private OrderStatus status;
@@ -77,16 +74,13 @@ public class Order extends AggregateRoot {
 
 ### 职责边界
 
-- 不适合放在单个实体中的跨聚合业务逻辑
-- 协调多个聚合根
-- 调用 Gateway 获取外部数据
+- 跨聚合业务逻辑、协调多个聚合根、调用 Gateway 获取外部数据
 - **禁止**包含用例编排逻辑（属于 app 层）
 
 ### 代码示例
 
 ```java
 public class OrderDomainService {
-
     private final OrderGateway orderGateway;
     private final ProductGateway productGateway;
 
@@ -109,28 +103,21 @@ public class OrderDomainService {
 
 ### 职责边界
 
-- 定义领域层需要的外部操作接口（防腐层）
-- 由 infrastructure 层实现
+- 定义领域层需要的外部操作接口（防腐层），由 infrastructure 层实现
 - 接口方法以领域语言命名，不暴露存储细节
 
 ### 代码示例
 
 ```java
 public interface OrderGateway {
-
     Order findById(String orderId);
-
     void save(Order order);
-
     void remove(String orderId);
 }
 ```
 
-**禁止**出现以下命名：
-
-- ❌ `OrderMapper` / `OrderRepository`（暴露存储实现细节）
-- ❌ `insert` / `update` / `delete`（CRUD 命名，非领域语言）
-- ✅ `save` / `remove` / `findById`（领域语言）
+❌ 禁止：`OrderMapper` / `OrderRepository`（暴露存储细节）、`insert` / `update` / `delete`（CRUD 命名）
+✅ 正确：`save` / `remove` / `findById`（领域语言）
 
 ## event 包（可选）
 
@@ -142,9 +129,7 @@ public interface OrderGateway {
 
 ### 职责边界
 
-- 表示领域中已发生的事实
-- 事件名称使用过去时态
-- 事件对象为不可变值对象
+- 表示领域中已发生的事实，事件名称使用过去时态，事件对象为不可变值对象
 
 ### 事件生命周期
 
@@ -156,7 +141,7 @@ registerEvent()         save()                  publish()
  内存列表               （DB 事务提交）          （事务提交后）
 ```
 
-- `registerEvent`：聚合根业务方法中调用，仅将事件存入内存列表，**不立即发布**
+- `registerEvent`：聚合根业务方法中调用，仅存入内存列表，**不立即发布**
 - `save`：GatewayImpl 持久化聚合根
 - `publish`：Application Service 在持久化成功后，从聚合根取出事件并发布
 

@@ -37,7 +37,6 @@ infrastructure
 ```java
 @Component
 public class OrderGatewayImpl implements OrderGateway {
-
     @Resource
     private OrderMapper orderMapper;
     @Resource
@@ -46,9 +45,7 @@ public class OrderGatewayImpl implements OrderGateway {
     @Override
     public Order findById(String orderId) {
         OrderDO orderDO = orderMapper.selectById(orderId);
-        if (orderDO == null) {
-            return null;
-        }
+        if (orderDO == null) { return null; }
         List<OrderItemDO> itemDOs = orderItemMapper.selectByOrderId(orderId);
         return OrderConverter.toEntity(orderDO, itemDOs);
     }
@@ -63,95 +60,50 @@ public class OrderGatewayImpl implements OrderGateway {
 
 ## mapper 包
 
-### 命名规约
-
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | Mapper 接口 | `{TableConcept}Mapper` | `OrderMapper`, `OrderItemMapper` |
 
-### 职责边界
-
-- 定义数据库操作方法
-- 对应 XML 或注解 SQL
-- **禁止**被 domain 或 app 层直接引用
+定义数据库操作方法，对应 XML 或注解 SQL。**禁止**被 domain 或 app 层直接引用。
 
 ## dataobject 包
-
-### 命名规约
 
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | 数据对象 | `{TableConcept}DO` | `OrderDO`, `OrderItemDO` |
 
-### 职责边界
-
-- 与数据库表一一对应
-- 仅包含字段和 getter/setter
-- **禁止**包含业务逻辑
-- **禁止**泄露到 domain 或 app 层
+与数据库表一一对应，仅包含字段和 getter/setter。**禁止**包含业务逻辑 / 泄露到 domain 或 app 层。
 
 ## client 包
-
-### 命名规约
 
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | 外部服务客户端 | `{ExternalSystem}Client` | `PaymentClient`, `InventoryClient` |
 | 外部服务响应 | `{ExternalSystem}Response` | `PaymentResponse` |
 
-### 职责边界
-
-- 封装对外部系统（RPC / HTTP）的调用
-- 处理序列化/反序列化
+- 封装对外部系统（RPC / HTTP）的调用，处理序列化/反序列化
 - 处理外部系统异常并转换为内部异常
 - **禁止**将外部系统的数据结构泄露到 domain 层
 
 ## event 包
 
-### 命名规约
-
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
 | 事件发布器 | `DomainEventPublisher` | `DomainEventPublisher` |
 
-### 职责边界
-
-- 实现 domain 层定义的 `DomainEventPublisher` 接口（如有）
-- 将领域事件发送到消息队列（RocketMQ / Kafka 等）
+- 实现 domain 层定义的 `DomainEventPublisher` 接口（如有），将领域事件发送到 MQ
 - 处理序列化和发送失败重试
 - **禁止**包含业务逻辑
 
-### 代码示例
-
-```java
-@Component
-public class DomainEventPublisherImpl implements DomainEventPublisher {
-
-    @Resource
-    private RocketMQTemplate rocketMQTemplate;
-
-    @Override
-    public void publish(DomainEvent event) {
-        String topic = "order-event";
-        String tag = event.getClass().getSimpleName();
-        rocketMQTemplate.convertAndSend(topic + ":" + tag, event);
-    }
-}
-```
-
-> **事件发布由 Application Service 控制**：`DomainEventPublisher` 只负责将事件发送到 MQ，**不负责决定何时发布**。发布时机（持久化后）由 app 层的 Application Service 控制。
+> `DomainEventPublisher` 只负责将事件发送到 MQ，**不负责决定何时发布**。发布时机（持久化后）由 app 层的 Application Service 控制。
 
 ## config 包
 
-### 职责边界
-
-- 数据源配置
-- Redis 配置
-- MQ 配置
-- 其他中间件配置
-- **仅限**基础设施相关配置，业务配置放在 start 模块
+数据源、Redis、MQ 等中间件配置。**仅限**基础设施相关配置，业务配置放在 start 模块。
 
 ## 对象转换规约
+
+> 详见 `references/object-isolation.md` 的转换规则明细和转换器归属。
 
 | 转换方向 | 转换器位置 | 方法命名 |
 |---------|-----------|---------|
@@ -161,12 +113,11 @@ public class DomainEventPublisherImpl implements DomainEventPublisher {
 
 ## Mandatory 规则
 
-1. Gateway 实现类命名必须以 `GatewayImpl` 结尾
-2. GatewayImpl 必须实现 domain 模块中定义的 Gateway 接口
-3. DO 对象**禁止**泄露到 domain 或 app 层
-4. Mapper 接口**禁止**被 domain 或 app 层直接引用，必须通过 GatewayImpl 间接使用
-5. 外部系统的数据结构**禁止**泄露到 domain 层，必须在 client 或 GatewayImpl 中转换
-6. 基础设施配置类**禁止**包含业务逻辑
+1. Gateway 实现类命名必须以 `GatewayImpl` 结尾，必须实现 domain 模块中定义的 Gateway 接口
+2. DO 对象**禁止**泄露到 domain 或 app 层
+3. Mapper 接口**禁止**被 domain 或 app 层直接引用，必须通过 GatewayImpl 间接使用
+4. 外部系统的数据结构**禁止**泄露到 domain 层，必须在 client 或 GatewayImpl 中转换
+5. 基础设施配置类**禁止**包含业务逻辑
 
 ## Recommended 规则
 
