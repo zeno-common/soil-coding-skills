@@ -16,15 +16,7 @@ APIs evolve over time. Versioning ensures backward compatibility while allowing 
 
 - Each version operates as an independent route set.
 - Older versions continue to function until explicitly deprecated.
-
-### Other Approaches (Not Recommended)
-
-| Approach | Example | Drawback |
-|----------|---------|----------|
-| Query string | `/users?version=2` | Same URI for different resources; complicates routing and HATEOAS |
-| Custom header | `Custom-Header: api-version=1` | Not visible in URI; hard to debug and test |
-| Accept header | `Accept: application/vnd.example.v1+json` | Most RESTful but complex to implement; poor developer experience |
-
+- 
 ### Versioning Rules
 
 - Version numbers must be **positive integers**: `v1`, `v2`, etc.

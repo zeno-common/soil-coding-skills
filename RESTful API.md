@@ -268,7 +268,7 @@ HTTP/1.1 200 ok
 Content-Type: application/json
 Server: example.com
 
-{ "code": -1,"msg": "该活动不存在" }
+{ "errCode": -1,"errDesc": "该活动不存在" }
 ```
 
 其次，在出现错误时，需要返回错误信息，常见的返回方式就是放在返回体中。

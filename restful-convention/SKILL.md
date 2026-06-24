@@ -1,5 +1,5 @@
 ---
-name: "result-convention"
+name: "restful-convention"
 description: "Enforces RESTful API design conventions for HTTP interface layer. Invoke when designing REST APIs, writing Controller classes, defining endpoints, or reviewing API design."
 ---
 
