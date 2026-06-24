@@ -146,6 +146,20 @@ public interface OrderGateway {
 - 事件名称使用过去时态
 - 事件对象为不可变值对象
 
+### 事件生命周期
+
+```
+registerEvent()         save()                  publish()
+     │                    │                       │
+     ▼                    ▼                       ▼
+ 存入聚合根             持久化聚合根             发布到 MQ
+ 内存列表               （DB 事务提交）          （事务提交后）
+```
+
+- `registerEvent`：聚合根业务方法中调用，仅将事件存入内存列表，**不立即发布**
+- `save`：GatewayImpl 持久化聚合根
+- `publish`：Application Service 在持久化成功后，从聚合根取出事件并发布
+
 ## Mandatory 规则
 
 1. Domain 模块**禁止**依赖 app、adapter、infrastructure 模块

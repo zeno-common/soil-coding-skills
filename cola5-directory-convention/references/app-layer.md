@@ -40,30 +40,12 @@ App 模块定义 Cmd / Qry / VO 三种对象类型，供 adapter 层使用。详
 - 对外暴露用例方法，是 Adapter 层的调用入口
 - 编排领域服务、Executor、Processor
 - 事务边界控制（`@Transactional`）
+- 持久化成功后发布领域事件
 - **禁止**包含业务规则判断
 - **禁止**直接操作数据库
 
-### 代码示例
 
-```java
-@Service
-public class OrderApplicationService {
-
-    @Resource
-    private OrderCreateCmdExe orderCreateCmdExe;
-    @Resource
-    private OrderListQryExe orderListQryExe;
-
-    @Transactional(rollbackFor = Exception.class)
-    public OrderVO createOrder(OrderCreateCmd cmd) {
-        return orderCreateCmdExe.execute(cmd);
-    }
-
-    public PageResponse<OrderVO> listOrders(OrderListQry qry) {
-        return orderListQryExe.execute(qry);
-    }
-}
-```
+> **事件发布时机**：必须在聚合根持久化成功（`save`）之后才发布事件，确保消费者查询时数据已落库。发布后调用 `clearEvents()` 避免重复发布。
 
 ## executor/command 包
 

@@ -12,6 +12,7 @@ infrastructure
     ├── mapper              # MyBatis Mapper 接口
     ├── dataobject          # 数据库映射对象（DO）
     ├── client              # 外部服务客户端（RPC、HTTP）
+    ├── event               # 领域事件发布实现
     ├── config              # 基础设施配置
     └── common              # 基础设施通用工具
 ```
@@ -104,6 +105,41 @@ public class OrderGatewayImpl implements OrderGateway {
 - 处理序列化/反序列化
 - 处理外部系统异常并转换为内部异常
 - **禁止**将外部系统的数据结构泄露到 domain 层
+
+## event 包
+
+### 命名规约
+
+| 类别 | 命名格式 | 示例 |
+|------|---------|------|
+| 事件发布器 | `DomainEventPublisher` | `DomainEventPublisher` |
+
+### 职责边界
+
+- 实现 domain 层定义的 `DomainEventPublisher` 接口（如有）
+- 将领域事件发送到消息队列（RocketMQ / Kafka 等）
+- 处理序列化和发送失败重试
+- **禁止**包含业务逻辑
+
+### 代码示例
+
+```java
+@Component
+public class DomainEventPublisherImpl implements DomainEventPublisher {
+
+    @Resource
+    private RocketMQTemplate rocketMQTemplate;
+
+    @Override
+    public void publish(DomainEvent event) {
+        String topic = "order-event";
+        String tag = event.getClass().getSimpleName();
+        rocketMQTemplate.convertAndSend(topic + ":" + tag, event);
+    }
+}
+```
+
+> **事件发布由 Application Service 控制**：`DomainEventPublisher` 只负责将事件发送到 MQ，**不负责决定何时发布**。发布时机（持久化后）由 app 层的 Application Service 控制。
 
 ## config 包
 
