@@ -1,4 +1,4 @@
-# 产出阶段（步骤 4-6）
+﻿# 产出阶段（步骤 4-6）
 
 ## 4. 生成 Markdown 文档
 
@@ -30,9 +30,13 @@
 docs/agent-rules/
 ├── README.md
 ├── <module-name>/
-│   └── <package-path>/
+│   └── <package-name>/
 │       └── <ClassName>.md
 ```
+
+**``<package-name>`` 命名规则**：将 Java 包名原样保留（含 ``.``）作为单级目录名，**不要**按 ``/`` 拆分为多级子目录。
+- ✅ 正确：``io.soil.waf.config/`` （包名原样作为目录名）
+- ❌ 错误：``io/soil/waf/config/`` （按路径分隔符拆分为多级目录）
 
 增量更新策略：
 
@@ -70,7 +74,7 @@ docs/agent-rules/
 
 | Class | Package | Description | Doc |
 |-------|---------|-------------|-----|
-| `ClassName` | `com.example.package` | <从类 Javadoc 第一句提取> | [ClassName](relative-path/to/ClassName.md) |
+| `ClassName` | `com.example.package` | <从类 Javadoc 第一句提取> | [ClassName](com.example.package/ClassName.md) |
 
 ---
 
@@ -93,7 +97,7 @@ AI Agent 在代码生成时遵循以下流程：
 |------|----------|------|
 | Maven 依赖引入 | 模块 `pom.xml` 的 `<groupId>`、`<artifactId>`、`<version>` | 跳过纯聚合模块（packaging=pom 且无 Java 源码） |
 | 模块概览 | 模块目录名 + pom.xml | 从模块 README 或模块名推断描述 |
-| 类索引 | Java 类 Javadoc 第一句 | 按模块 → 包路径分组，Doc 列为相对路径链接 |
+| 类索引 | Java 类 Javadoc 第一句 | 按模块 → 包路径分组，Doc 列为相对路径链接，包名作为单级目录（如 io.soil.waf.config/WafConfig.md） |
 | 使用指南 | 固定文本 | 直接使用模板中的固定内容 |
 
 ## 6. 关键规则
