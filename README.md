@@ -11,12 +11,12 @@ AI Coding 规范 Skill 工程。支持通过 `npx skills` CLI 安装，也可通
 npx skills add zeno-common/soil-coding-skills --list
 
 # 安装指定技能
-npx skills add zeno-common/soil-coding-skills --skill cola5-architecture -g -y
-npx skills add zeno-common/soil-coding-skills --skill java-coding-guidelines -g -y
-npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-generator -g -y
-npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-skill-creator -g -y
-npx skills add zeno-common/soil-coding-skills --skill mysql-conventions -g -y
-npx skills add zeno-common/soil-coding-skills --skill restful-convention -g -y
+npx skills add zeno-common/soil-coding-skills --skill cola5-architecture -y
+npx skills add zeno-common/soil-coding-skills --skill java-coding-guidelines -y
+npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-generator -y
+npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-skill-creator -y
+npx skills add zeno-common/soil-coding-skills --skill mysql-conventions -y
+npx skills add zeno-common/soil-coding-skills --skill restful-convention -y
 
 # 安装全部
 npx skills add zeno-common/soil-coding-skills --all
