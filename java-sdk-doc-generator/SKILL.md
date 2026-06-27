@@ -1,9 +1,6 @@
 ---
 name: "java-sdk-doc-generator"
-description: |
-  MANDATORY: When invoked, MUST follow the execution steps below in order.
-  Generates AI-agent-friendly Markdown SDK docs from Java source comments.
----
+description: "Generates AI-agent-friendly Markdown SDK docs from Java source comments. MANDATORY: When invoked, MUST follow the execution steps below in order."
 ---
 
 # SDK Doc Generator

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/skill-creator/SKILL.md",
+      "computedHash": "5ea13a6d9f0d4bb694405d79acd00cadec0d21bb138c4dd10fcf3c500cb835c2"
+    },
+    "skill-optimization-guide": {
+      "source": "openyida/openyida",
+      "sourceType": "github",
+      "skillPath": ".qoder/skills/skill-optimization-guide/SKILL.md",
+      "computedHash": "7c2dd6ca6f0362f53d7ca8f572a45b48689af083c3e822a9685d93b09f5bc908"
+    }
+  }
+}
