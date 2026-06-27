@@ -1,4 +1,4 @@
-﻿---
+---
 name: "java-coding-guidelines"
 description: "Enforces Java Coding Guidelines for code review, generation, and refactoring. Invoke when writing Java code, reviewing Java PRs, fixing Java style issues, or when user mentions coding standards, Java conventions, or Chinese Java development norms."
 ---
