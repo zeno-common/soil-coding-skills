@@ -11,7 +11,7 @@ AI Coding 规范 Skill 工程。支持通过 `npx skills` CLI 安装，也可通
 npx skills add zeno-common/soil-coding-skills --list
 
 # 安装指定技能
-npx skills add zeno-common/soil-coding-skills --skill cola5-architecture -y
+npx skills add zeno-common/soil-coding-skills --skill x-cola5-architecture -y
 npx skills add zeno-common/soil-coding-skills --skill java-coding-guidelines -y
 npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-generator -y
 npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-skill-creator -y
@@ -33,7 +33,7 @@ git submodule update --init --recursive
 
 | Skill | 说明 | 触发场景 |
 |-------|------|---------|
-| `cola5-architecture` | COLA 5 整洁架构目录与分层规范 | 创建 Java 项目结构、添加类、确定类所属层、审查架构合规 |
+| `x-cola5-architecture` | COLA 5 整洁架构目录与分层规范 | 创建 Java 项目结构、添加类、确定类所属层、审查架构合规 |
 | `java-coding-guidelines` | 阿里巴巴 Java 开发手册规约 | 编写/审查 Java 代码、PR Review、代码风格修复 |
 | `java-sdk-doc-generator` | SDK 文档生成器 | 生成/更新 Java SDK Markdown 文档 |
 | `java-sdk-doc-skill-creator` | SDK 文档 Skill 生成器 | 从 Java 源码生成可加载的 SDK 文档 skill |
@@ -45,7 +45,7 @@ git submodule update --init --recursive
 ```
 soil-coding-skills/
 ├── skills/
-│   ├── cola5-architecture/              # COLA 5 架构规范
+│   ├── x-cola5-architecture/              # COLA 5 架构规范
 │   │   ├── SKILL.md
 │   │   └── references/
 │   │       ├── project-structure.md

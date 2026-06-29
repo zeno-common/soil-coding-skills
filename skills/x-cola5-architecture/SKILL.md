@@ -1,5 +1,5 @@
 ---
-name: "cola5-architecture"
+name: "x-cola5-architecture"
 description: "Enforces COLA 5 directory and layer conventions for Java projects. Invoke when creating Java project structure, adding classes, deciding which layer a class belongs to, or reviewing architecture compliance."
 ---
 
