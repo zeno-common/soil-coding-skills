@@ -1,4 +1,4 @@
-# Adapter Layer
+﻿# Adapter Layer
 
 适配层目录规约。Adapter 是系统的输入端，负责接收外部请求并转换为应用层调用。
 
@@ -39,7 +39,7 @@ adapter
 
 ### 职责边界
 
-- 参数校验（`@Valid` / `@Validated`）、调用 app 层、领域对象转 VO、`@ResponseStatus` 声明非 200 状态码
+- 参数校验（`@Valid` / `@Validated`）、调用 app 层、领域对象转 VO、`@ResponseStatus` 声明成功类非 200 状态码（201、204 等）；错误类状态码（4xx/5xx）通过异常处理器统一返回
 - **禁止**包含业务逻辑 / 直接调用 domain 或 infrastructure
 
 ### 代码示例
@@ -78,17 +78,21 @@ public class OrderController {
 
 遵循 `restful-convention / response-status`，核心原则：**HTTP 状态码是请求结果的首要指示，禁止一律返回 200 + body errCode。**
 
+- 请求失败（4xx/5xx）：统一返回错误响应体 `{"errCode":"ERROR_CODE","errDesc":"error description"}`
+- 请求成功（2xx）：直接返回数据或无返回体，**禁止**包装为 `{"data": ...}` 等外层结构
+
 | 状态码 | 场景 | 状态码 | 场景 |
 |--------|------|--------|------|
-| 200 OK | GET 查询 | 400 Bad Request | 参数校验失败 |
-| 201 Created | POST 创建资源 | 401 Unauthorized | 未认证 |
+| 200 OK | GET 查询 / POST 返回数据 | 400 Bad Request | 参数校验失败 |
+| 201 Created | POST/PUT/PATCH 创建资源 | 401 Unauthorized | 未认证 |
 | 202 Accepted | 异步请求 | 403 Forbidden | 无权限 |
 | 204 No Content | PUT/DELETE 成功无返回体 | 404 Not Found | 资源不存在 |
+| 303 See Other | POST/PUT/DELETE 后重定向 | 405 Method Not Allowed | HTTP 方法不支持 |
+| | | 415 Unsupported Media Type | 请求 Content-Type 不支持 |
 | | | 429 Too Many Requests | 限流 |
 | | | 500 Internal Server Error | 服务端故障 |
 | | | 503 Service Unavailable | 服务不可用 |
-
-错误响应体：`{ "errCode": "ERROR_CODE", "errDesc": "error description" }`
+> 405 和 415 通常由框架自动返回；303 用于状态变更操作后的重定向，通过 `Location` 头指向新资源。
 
 ❌ 禁止：`200 OK` + `{ errCode: "NOT_FOUND" }`　✅ 正确：`404 Not Found` + `{ errCode: "NOT_FOUND" }`
 
@@ -174,7 +178,7 @@ order-adapter/                # 实现模块
 3. DTO 定义在 adapter.api 或独立 API jar，禁止泄露到 app 或 domain；命名：写入参 `{Resource}{Action}DTO`、读入参 `{Resource}QueryDTO`、响应 `{Resource}DTO`
 4. Controller、HttpApi、RpcApi 中**禁止**编写业务逻辑，仅做参数校验和调用转发
 5. Adapter 层**禁止**直接依赖 domain 或 infrastructure 模块
-6. Controller HTTP 接口**必须**遵循 `restful-convention`；**禁止**一律返回 200，非 200 状态码通过 `@ResponseStatus` 声明
+6. Controller HTTP 接口**必须**遵循 ``restful-convention``；**禁止**一律返回 200，成功类非 200 状态码（201、204 等）通过 ``@ResponseStatus`` 声明，错误类状态码（4xx/5xx）通过异常处理器统一返回
 7. http 与 rpc **禁止**各自定义独立的 DTO，必须共享同一套 DTO 类型
 
 ## Recommended 规则
