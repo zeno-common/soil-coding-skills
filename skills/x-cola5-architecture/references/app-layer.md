@@ -47,19 +47,19 @@ App 模块定义 Cmd / Qry / VO 三种对象类型，供 adapter 层使用。详
 
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
-| Command Executor | `{Action}{Resource}CmdExe` | `OrderCreateCmdExe` |
+| Command Executor | `{Action}{Resource}Cmd` | `OrderCreateCmd` |
 
 - 接收 Cmd → 转换为领域对象 → 调用领域服务或 Gateway → 转换为 VO 返回
-- 一个 CmdExe 对应一个写操作用例
+- 一个 Cmd 对应一个写操作用例
 
 ## executor/query 包
 
 | 类别 | 命名格式 | 示例 |
 |------|---------|------|
-| Query Executor | `{Action}{Resource}QryExe` | `OrderListQryExe` |
+| Query Executor | `{Action}{Resource}Qry` | `OrderListQry` |
 
 - 接收 Qry → 可绕过领域层直接调用 infrastructure 的查询 Gateway → 组装分页响应
-- 一个 QryExe 对应一个读操作用例
+- 一个 Qry 对应一个读操作用例
 
 ## processor 包（可选）
 
@@ -72,16 +72,16 @@ App 模块定义 Cmd / Qry / VO 三种对象类型，供 adapter 层使用。详
 ## Mandatory 规则
 
 1. Application Service 命名必须以 `ApplicationService` 结尾
-2. Command Executor 命名必须以 `CmdExe` 结尾，Query Executor 命名必须以 `QryExe` 结尾
+2. Command Executor 命名必须以 `Cmd` 结尾，Query Executor 命名必须以 `Qry` 结尾
 3. App 层**禁止**包含业务规则，业务规则必须在 domain 层
 4. 事务注解 `@Transactional` 只能出现在 Application Service 上
-5. CmdExe / QryExe 不得互相调用
+5. Cmd / Qry 不得互相调用
 6. App 层**禁止**直接依赖 infrastructure 模块的具体实现类
 
 ## Recommended 规则
 
 1. 一个 Application Service 对应一个领域聚合
-2. 一个 CmdExe / QryExe 只做一件事（单一职责）
+2. 一个 Cmd / Qry 只做一件事（单一职责）
 3. 简单用例直接在 Service 中编排，不需要额外 Processor
 4. Query Executor 中可直接调用 Gateway 的查询方法，不必经过领域服务
 5. Cmd / Qry / VO 定义在 app 模块，供 adapter 层使用，不要在 adapter 层重新定义
