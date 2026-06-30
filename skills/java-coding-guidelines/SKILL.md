@@ -5,7 +5,7 @@ description: "Enforces Java Coding Guidelines for code review, generation, and r
 
 # Java Coding Guidelines
 
-Core rules from Alibaba Java Coding Guidelines v1.7.1. Apply when writing, reviewing, or refactoring Java code.
+Core rules from Java Coding Guidelines v1.7.1. Apply when writing, reviewing, or refactoring Java code.
 
 | Section | Reference | When to Read |
 |---------|-----------|-------------|
