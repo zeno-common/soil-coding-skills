@@ -10,7 +10,7 @@ This skill encodes Spring MongoDB best practices. Apply when designing document 
 | Section | Reference File | When to Read |
 |---------|---------------|-------------|
 | Document Design | `references/document-design.md` | When designing collections, choosing field types, embedding vs referencing, naming |
-| Base Document Class | `references/base-document.md` | When creating entity classes, designing BaseDoc<ID>, configuring ID generation + auditing + optional version/deleted |
+| Base Document Class | `references/base-document.md` | When creating entity classes, designing BaseMongoDoc<ID>, configuring ID generation + auditing + optional version/deleted |
 | Query Rules | `references/query-rules.md` | When writing find/aggregation queries, pagination, transactions |
 | Index Rules | `references/index-rules.md` | When creating indexes, optimizing queries, reviewing query plans |
 | Spring Data Rules | `references/spring-data-rules.md` | When writing Repository interfaces, using @Transactional, mapping annotations, MongoTemplate, EntityCallback |
@@ -21,7 +21,7 @@ This skill encodes Spring MongoDB best practices. Apply when designing document 
 Read `references/document-design.md` -> follow naming -> choose embed vs reference -> define common fields -> set BSON types.
 
 ### When Creating Entity Classes
-Read `references/base-document.md` -> extend BaseDoc<ID> (specify ID type) -> configure MongoDocIdCallback (BeforeConvertCallback) -> enable auditing -> add version/deleted as needed.
+Read `references/base-document.md` -> extend BaseMongoDoc<ID> (specify ID type) -> configure MongoDocIdCallback (BeforeConvertCallback) -> enable auditing -> add version/deleted as needed.
 
 ### When Writing Queries
 Read `references/query-rules.md` -> check find/aggregation rules -> verify pagination -> review transaction scope.

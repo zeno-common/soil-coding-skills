@@ -41,23 +41,23 @@
   - OK: Use distributed ID as default surrogate key
   - OK: Use business identifier (e.g., `orderId`) as `_id` only when guaranteed unique and immutable
   - BAD: Use mutable fields like `email` as `_id` (email can change)
-- In Spring Data MongoDB entity mapping, `BaseDoc<ID>` uses a generic type parameter for the ID field:
+- In Spring Data MongoDB entity mapping, `BaseMongoDoc<ID>` uses a generic type parameter for the ID field:
   ```java
   // Distributed ID (Long)
   @Document(collection = "users")
-  public class UserDoc extends BaseDoc<Long> { ... }
+  public class UserDoc extends BaseMongoDoc<Long> { ... }
 
   // Business key (String)
   @Document(collection = "system_configs")
-  public class ConfigDoc extends BaseDoc<String> { ... }
+  public class ConfigDoc extends BaseMongoDoc<String> { ... }
   ```
 - Generate ID via `MongoDocIdCallback` (BeforeConvertCallback EntityCallback API), not `@PrePersist`:
   ```java
   @Component
-  public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+  public class MongoDocIdCallback implements BeforeConvertCallback<BaseMongoDoc<Long>>, Ordered {
 
       @Override
-      public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+      public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
           if (entity.getId() == null) {
               entity.setId(LeafId.next());
           }
@@ -72,7 +72,7 @@
   ```
   - `@PrePersist` is a JPA annotation (`javax.persistence`), not a Spring Data MongoDB annotation. Do NOT use it in MongoDB entity classes.
   - `MongoDocIdCallback` is a Spring-managed bean — no `SpringContextHolder` hack needed.
-  - `MongoDocIdCallback` only handles `BaseDoc<Long>`. Entities using `BaseDoc<String>` are not affected.
+  - `MongoDocIdCallback` only handles `BaseMongoDoc<Long>`. Entities using `BaseMongoDoc<String>` are not affected.
   - `LeafId.next()` generates a distributed unique ID (Long). Provided by the project's dependency library.
   - See `references/base-document.md` Section 5 for full design.
 
@@ -105,7 +105,7 @@
 
 ## 5. Common Fields
 
-- Every document should include audit fields: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`. These are provided by `BaseDoc<ID>` (see `references/base-document.md`).
+- Every document should include audit fields: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`. These are provided by `BaseMongoDoc<ID>` (see `references/base-document.md`).
 - Use `Date` type (ISODate) for time fields, never store timestamps as strings.
   - OK: `createdAt: ISODate("2024-01-15T10:30:00Z")`
   - BAD: `createdAt: "2024-01-15 10:30:00"`
@@ -186,25 +186,25 @@ public void prePersist() {
 // @PrePersist belongs to javax.persistence (JPA), not Spring Data MongoDB.
 // Use BeforeConvertCallback instead. See references/base-document.md Section 5.
 
-// BAD: Using raw type BaseDoc without ID type parameter
-public class UserDoc extends BaseDoc { ... }
-// Always specify: BaseDoc<Long> or BaseDoc<String>
+// BAD: Using raw type BaseMongoDoc without ID type parameter
+public class UserDoc extends BaseMongoDoc { ... }
+// Always specify: BaseMongoDoc<Long> or BaseMongoDoc<String>
 
 // BAD: Document class without Doc suffix (ambiguous with DTO / VO)
 @Document(collection = "users")
-public class User extends BaseDoc<Long> { ... }
+public class User extends BaseMongoDoc<Long> { ... }
 
 // BAD: Using Entity / Model suffix (JPA / ORM convention, not MongoDB)
 @Document(collection = "users")
-public class UserEntity extends BaseDoc<Long> { ... }
+public class UserEntity extends BaseMongoDoc<Long> { ... }
 
 // BAD: Using Document suffix (too verbose)
 @Document(collection = "users")
-public class UserDocument extends BaseDoc<Long> { ... }
+public class UserDocument extends BaseMongoDoc<Long> { ... }
 
 // BAD: Missing explicit collection name (defaults to class name in camelCase)
 @Document
-public class UserDoc extends BaseDoc<Long> { ... }
+public class UserDoc extends BaseMongoDoc<Long> { ... }
 ```
 
 ## Corrected Patterns
@@ -229,10 +229,10 @@ public class UserDoc extends BaseDoc<Long> { ... }
 ```java
 // OK: ID generation via MongoDocIdCallback (BeforeConvertCallback)
 @Component
-public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseMongoDoc<Long>>, Ordered {
 
     @Override
-    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+    public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
         if (entity.getId() == null) {
             entity.setId(LeafId.next());
         }
@@ -247,13 +247,13 @@ public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>,
 
 // OK: Doc suffix + explicit collection name + Long ID type
 @Document(collection = "users")
-public class UserDoc extends BaseDoc<Long> { ... }
+public class UserDoc extends BaseMongoDoc<Long> { ... }
 
 // OK: Doc suffix + String ID type (business key)
 @Document(collection = "system_configs")
-public class ConfigDoc extends BaseDoc<String> { ... }
+public class ConfigDoc extends BaseMongoDoc<String> { ... }
 
 // OK: Order document
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc<Long> { ... }
+public class OrderDoc extends BaseMongoDoc<Long> { ... }
 ```

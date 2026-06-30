@@ -4,15 +4,15 @@
 
 - Always annotate Document classes with `@Document(collection = "collection_name")`. Never rely on class name defaulting.
 - Document class names use `Doc` suffix (e.g., `UserDoc`, `OrderDoc`). See `references/document-design.md` for naming rules.
-- All entities must extend `BaseDoc<ID>` (see `references/base-document.md`). Do not re-declare ID or auditing fields.
+- All entities must extend `BaseMongoDoc<ID>` (see `references/base-document.md`). Do not re-declare ID or auditing fields.
   ```java
   @Document(collection = "users")
-  public class UserDoc extends BaseDoc<Long> { ... }
+  public class UserDoc extends BaseMongoDoc<Long> { ... }
   ```
-- Always specify the concrete ID type parameter. Do not use raw type `BaseDoc`.
-  - OK: `extends BaseDoc<Long>` (distributed ID)
-  - OK: `extends BaseDoc<String>` (business key)
-  - BAD: `extends BaseDoc` (raw type, no type safety)
+- Always specify the concrete ID type parameter. Do not use raw type `BaseMongoDoc`.
+  - OK: `extends BaseMongoDoc<Long>` (distributed ID)
+  - OK: `extends BaseMongoDoc<String>` (business key)
+  - BAD: `extends BaseMongoDoc` (raw type, no type safety)
 - Use `@Field("fieldName")` when Java field name differs from MongoDB field name, or to explicitly declare the mapping.
   ```java
   @Field("createdAt")
@@ -29,7 +29,7 @@
 
 ## 2. Repository Design
 
-- Extend `MongoRepository<DocClass, ID>` for standard CRUD operations. The ID type must match the `BaseDoc<ID>` type parameter.
+- Extend `MongoRepository<DocClass, ID>` for standard CRUD operations. The ID type must match the `BaseMongoDoc<ID>` type parameter.
   ```java
   public interface UserRepository extends MongoRepository<UserDoc, Long> { ... }
   public interface ConfigRepository extends MongoRepository<ConfigDoc, String> { ... }
@@ -95,7 +95,7 @@
 ## 5. Auditing
 
 - Enable MongoDB auditing with `@EnableMongoAuditing` on configuration class.
-- Auditing fields (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`) are defined in `BaseDoc<ID>` with `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`. See `references/base-document.md` for full design.
+- Auditing fields (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`) are defined in `BaseMongoDoc<ID>` with `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`. See `references/base-document.md` for full design.
 - `AuditorAware<String>` is provided by the project's dependency library. Do not implement it manually.
 
 ## 6. EntityCallback API
@@ -114,10 +114,10 @@
 - ID generation is handled by `MongoDocIdCallback` (see `references/base-document.md` Section 5):
   ```java
   @Component
-  public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+  public class MongoDocIdCallback implements BeforeConvertCallback<BaseMongoDoc<Long>>, Ordered {
 
       @Override
-      public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+      public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
           if (entity.getId() == null) {
               entity.setId(LeafId.next());
           }
@@ -130,7 +130,7 @@
       }
   }
   ```
-- `MongoDocIdCallback` only handles `BaseDoc<Long>`. Entities using `BaseDoc<String>` are not affected.
+- `MongoDocIdCallback` only handles `BaseMongoDoc<Long>`. Entities using `BaseMongoDoc<String>` are not affected.
 - `LeafId.next()` generates a distributed unique ID (Long). Provided by the project's dependency library.
 - Use `Ordered` interface to control execution order. AuditingEntityCallback runs at order 1000 by default.
 - For reactive applications, use `ReactiveBeforeConvertCallback` / `ReactiveAfterSaveCallback` etc.
@@ -141,7 +141,7 @@
 - Add `@Version` field only when concurrent updates are expected. Not all documents need this.
   ```java
   @Document(collection = "orders")
-  public class OrderDoc extends BaseDoc<Long> {
+  public class OrderDoc extends BaseMongoDoc<Long> {
       @Version
       @Field("version")
       private Long version;
@@ -188,7 +188,7 @@
                      def = "{'status': 1, 'createdAt': -1}")
   })
   @Document(collection = "orders")
-  public class OrderDoc extends BaseDoc<Long> { ... }
+  public class OrderDoc extends BaseMongoDoc<Long> { ... }
   ```
 - In production, manage indexes via migration scripts (Mongock, etc.), not auto-index-creation.
 
@@ -209,9 +209,9 @@ public void prePersist() {
 this.id = SpringContextHolder.getBean(SomeGenerator.class).nextId();
 // Entity classes are not Spring-managed beans. Use EntityCallback for DI.
 
-// BAD: Using raw type BaseDoc without ID type parameter
-public class UserDoc extends BaseDoc { ... }
-// Always specify: BaseDoc<Long> or BaseDoc<String>
+// BAD: Using raw type BaseMongoDoc without ID type parameter
+public class UserDoc extends BaseMongoDoc { ... }
+// Always specify: BaseMongoDoc<Long> or BaseMongoDoc<String>
 
 // BAD: Implementing AuditorAware manually when provided by dependency library
 @Component
@@ -236,9 +236,9 @@ repository.save(user); // replaces entire document
 
 // BAD: Performing DB operations inside EntityCallback
 @Component
-public class BadCallback implements BeforeConvertCallback<BaseDoc<Long>> {
+public class BadCallback implements BeforeConvertCallback<BaseMongoDoc<Long>> {
     @Override
-    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+    public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
         auditLogRepository.save(new AuditLog(...)); // risk of infinite loop!
         return entity;
     }
@@ -249,22 +249,22 @@ public class BadCallback implements BeforeConvertCallback<BaseDoc<Long>> {
 
 // BAD: Document class without Doc suffix
 @Document(collection = "users")
-public class User extends BaseDoc<Long> { ... }
+public class User extends BaseMongoDoc<Long> { ... }
 
 // BAD: Using Entity / Model suffix (JPA / ORM convention)
 @Document(collection = "users")
-public class UserEntity extends BaseDoc<Long> { ... }
+public class UserEntity extends BaseMongoDoc<Long> { ... }
 
 // BAD: Using Document suffix (too verbose)
 @Document(collection = "users")
-public class UserDocument extends BaseDoc<Long> { ... }
+public class UserDocument extends BaseMongoDoc<Long> { ... }
 
-// BAD: Duplicating auditing/ID fields in each entity instead of using BaseDoc
-// See references/base-document.md for the correct BaseDoc design
+// BAD: Duplicating auditing/ID fields in each entity instead of using BaseMongoDoc
+// See references/base-document.md for the correct BaseMongoDoc design
 
 // BAD: Adding @Version on documents that are never updated
 @Document(collection = "access_logs")
-public class AccessLogDoc extends BaseDoc<Long> {
+public class AccessLogDoc extends BaseMongoDoc<Long> {
     @Version
     private Long version; // logs are append-only, no concurrent updates
 }
@@ -275,10 +275,10 @@ public class AccessLogDoc extends BaseDoc<Long> {
 ```java
 // OK: ID generation via MongoDocIdCallback (BeforeConvertCallback)
 @Component
-public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseMongoDoc<Long>>, Ordered {
 
     @Override
-    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+    public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
         if (entity.getId() == null) {
             entity.setId(LeafId.next());
         }
@@ -311,9 +311,9 @@ mongoTemplate.updateFirst(
 // OK: Manage indexes via migration scripts in production
 // Use Mongock or custom migration scripts
 
-// OK: Extend BaseDoc<Long> with Doc suffix — no field duplication
+// OK: Extend BaseMongoDoc<Long> with Doc suffix — no field duplication
 @Document(collection = "users")
-public class UserDoc extends BaseDoc<Long> {
+public class UserDoc extends BaseMongoDoc<Long> {
     @Field("name")
     private String name;
 
@@ -321,16 +321,16 @@ public class UserDoc extends BaseDoc<Long> {
     private String email;
 }
 
-// OK: Extend BaseDoc<String> for business key ID
+// OK: Extend BaseMongoDoc<String> for business key ID
 @Document(collection = "system_configs")
-public class ConfigDoc extends BaseDoc<String> {
+public class ConfigDoc extends BaseMongoDoc<String> {
     @Field("value")
     private String value;
 }
 
 // OK: Add @Version only when concurrent updates are expected
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc<Long> {
+public class OrderDoc extends BaseMongoDoc<Long> {
     @Field("totalAmount")
     private BigDecimal totalAmount;
 

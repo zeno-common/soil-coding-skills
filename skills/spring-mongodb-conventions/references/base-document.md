@@ -2,22 +2,22 @@
 
 ## 1. Overview
 
-- All Document classes must extend a common `BaseDoc<ID>` abstract class that encapsulates ID and auditing. Do not duplicate these fields in each entity.
-- `BaseDoc<ID>` uses a generic type parameter for the ID field — the concrete ID type is defined by each derived class (e.g., `UserDoc extends BaseDoc<Long>`).
-- `BaseDoc` consolidates cross-cutting concerns that every document shares, ensuring consistency and reducing boilerplate.
+- All Document classes must extend a common `BaseMongoDoc<ID>` abstract class that encapsulates ID and auditing. Do not duplicate these fields in each entity.
+- `BaseMongoDoc<ID>` uses a generic type parameter for the ID field — the concrete ID type is defined by each derived class (e.g., `UserDoc extends BaseMongoDoc<Long>`).
+- `BaseMongoDoc` consolidates cross-cutting concerns that every document shares, ensuring consistency and reducing boilerplate.
 - Document class names use `Doc` suffix (e.g., `UserDoc`, `OrderDoc`). See `references/document-design.md` for naming rules.
-- `BaseDoc` only includes universally required fields: `id` (generic type) and auditing fields. `version` (optimistic locking) and `deleted` (logical deletion) are NOT included — they are optional concerns that subclasses add as needed.
+- `BaseMongoDoc` only includes universally required fields: `id` (generic type) and auditing fields. `version` (optimistic locking) and `deleted` (logical deletion) are NOT included — they are optional concerns that subclasses add as needed.
 - ID generation is handled by `MongoDocIdCallback` (BeforeConvertCallback EntityCallback API), NOT by `@PrePersist`. See Section 5 for details.
 - `AuditorAware` is provided by the project's dependency library. Do not implement it manually.
 
-## 2. BaseDoc Design
+## 2. BaseMongoDoc Design
 
 ```java
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public abstract class BaseDoc<ID> {
+public abstract class BaseMongoDoc<ID> {
 
     @Id
     private ID id;
@@ -40,15 +40,15 @@ public abstract class BaseDoc<ID> {
 }
 ```
 
-- `BaseDoc<ID>` is a pure POJO — no lifecycle methods, no framework callbacks.
-- The ID type is a generic parameter. Each derived class specifies the concrete type (e.g., `BaseDoc<Long>` for distributed ID, `BaseDoc<String>` for business key).
+- `BaseMongoDoc<ID>` is a pure POJO — no lifecycle methods, no framework callbacks.
+- The ID type is a generic parameter. Each derived class specifies the concrete type (e.g., `BaseMongoDoc<Long>` for distributed ID, `BaseMongoDoc<String>` for business key).
 - ID generation is decoupled from the entity class via `MongoDocIdCallback` (see Section 5).
 - **CAUTION**: When using `Long` as ID type, distributed IDs exceed JavaScript `Number.MAX_SAFE_INTEGER` (2^53-1). Use Jackson global Long-to-String serialization to prevent precision loss on JS clients. See `references/spring-data-rules.md` Section 9 for Jackson configuration.
 
 ### Why Generic ID Type
 
 - **Flexibility**: Not all documents use `Long` ID. Some may use `String` business keys (e.g., `orderId` as `_id`).
-- **Type safety**: `BaseDoc<Long>` ensures `getId()` returns `Long`, `BaseDoc<String>` returns `String` — no casting needed.
+- **Type safety**: `BaseMongoDoc<Long>` ensures `getId()` returns `Long`, `BaseMongoDoc<String>` returns `String` — no casting needed.
 - **Repository compatibility**: `MongoRepository<UserDoc, Long>` and `MongoRepository<ConfigDoc, String>` both work correctly with their respective ID types.
 
 ## 3. Field Design Decisions
@@ -61,7 +61,7 @@ public abstract class BaseDoc<ID> {
 | `createdBy` | `String` | `@CreatedBy` + `@Field("createdBy")` | Auto-filled with current auditor on insert |
 | `updatedBy` | `String` | `@LastModifiedBy` + `@Field("updatedBy")` | Auto-filled with current auditor on insert and update |
 
-### Why `version` and `deleted` are NOT in BaseDoc
+### Why `version` and `deleted` are NOT in BaseMongoDoc
 
 - **`version`** (optimistic locking): Not all documents face concurrent updates. For example, log documents are append-only and never updated. Forcing `@Version` on all documents adds unnecessary overhead and confusion.
 - **`deleted`** (logical deletion): Not all documents require soft delete. For example, system config documents are never logically deleted. Forcing a `deleted` flag on all documents wastes storage and complicates queries.
@@ -75,7 +75,7 @@ Add `@Version` only when the document may be concurrently updated by multiple th
 
 ```java
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc<Long> {
+public class OrderDoc extends BaseMongoDoc<Long> {
 
     @Field("totalAmount")
     private BigDecimal totalAmount;
@@ -95,7 +95,7 @@ Add `deleted` only when the document requires soft delete instead of physical re
 
 ```java
 @Document(collection = "users")
-public class UserDoc extends BaseDoc<Long> {
+public class UserDoc extends BaseMongoDoc<Long> {
 
     @Field("name")
     private String name;
@@ -125,7 +125,7 @@ public class UserDoc extends BaseDoc<Long> {
 
 ```java
 @Document(collection = "products")
-public class ProductDoc extends BaseDoc<Long> {
+public class ProductDoc extends BaseMongoDoc<Long> {
 
     @Field("name")
     private String name;
@@ -148,7 +148,7 @@ When a document uses a business key as `_id` instead of distributed ID:
 
 ```java
 @Document(collection = "system_configs")
-public class ConfigDoc extends BaseDoc<String> {
+public class ConfigDoc extends BaseMongoDoc<String> {
 
     @Field("value")
     private String value;
@@ -159,7 +159,7 @@ public class ConfigDoc extends BaseDoc<String> {
 ```
 
 - `ConfigDoc` uses `String` as ID type — no ID generation needed.
-- `MongoDocIdCallback` only handles `BaseDoc<Long>` and will not interfere with `BaseDoc<String>`.
+- `MongoDocIdCallback` only handles `BaseMongoDoc<Long>` and will not interfere with `BaseMongoDoc<String>`.
 
 ## 5. ID Generation via MongoDocIdCallback
 
@@ -186,10 +186,10 @@ public class ConfigDoc extends BaseDoc<String> {
 
 ```java
 @Component
-public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseMongoDoc<Long>>, Ordered {
 
     @Override
-    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+    public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
         if (entity.getId() == null) {
             entity.setId(LeafId.next());
         }
@@ -203,7 +203,7 @@ public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>,
 }
 ```
 
-- `BeforeConvertCallback<BaseDoc<Long>>`: Only intercepts entities extending `BaseDoc<Long>`. Entities using `BaseDoc<String>` are not affected.
+- `BeforeConvertCallback<BaseMongoDoc<Long>>`: Only intercepts entities extending `BaseMongoDoc<Long>`. Entities using `BaseMongoDoc<String>` are not affected.
 - `LeafId.next()`: Generates a distributed unique ID (Long). Provided by the project's dependency library.
 - `getOrder()`: Controls execution order. AuditingEntityCallback runs at order 1000 by default. ID generation should run before auditing, so use a lower order value (e.g., 100).
 
@@ -227,7 +227,7 @@ Application calls repository.save(entity)
 
 ## 6. Prerequisites Configuration
 
-`BaseDoc` relies on the following Spring configurations. All must be present:
+`BaseMongoDoc` relies on the following Spring configurations. All must be present:
 
 ```java
 @Configuration
@@ -254,7 +254,7 @@ public class MongoConfig {
 @CompoundIndexes({
     @CompoundIndex(name = "idx_status_createdAt", def = "{'status': 1, 'createdAt': -1}")
 })
-public class UserDoc extends BaseDoc<Long> {
+public class UserDoc extends BaseMongoDoc<Long> {
 
     @Field("name")
     private String name;
@@ -273,10 +273,10 @@ public class UserDoc extends BaseDoc<Long> {
 - No lifecycle methods needed — ID generation is handled by `MongoDocIdCallback`, auditing by Spring Data auditing.
 - Field defaults (e.g., `deleted = false`) are set via Java field initializers, not `@PrePersist`.
 
-## 8. Rules for Extending BaseDoc
+## 8. Rules for Extending BaseMongoDoc
 
 - Document class names must use `Doc` suffix (e.g., `UserDoc`, `OrderDoc`, `ProductDoc`).
-- All derived classes must specify the concrete ID type parameter (e.g., `extends BaseDoc<Long>` or `extends BaseDoc<String>`).
+- All derived classes must specify the concrete ID type parameter (e.g., `extends BaseMongoDoc<Long>` or `extends BaseMongoDoc<String>`).
 - Never re-declare `id`, `createdAt`, `updatedAt`, `createdBy`, `updatedBy` in subclasses.
 - Subclasses must use `@Document(collection = "...")` annotation explicitly with the collection name.
 - Do NOT use `@PrePersist` / `@PreUpdate` / `@PostPersist` / `@PostUpdate` in entity classes — these are JPA annotations, not Spring Data MongoDB annotations.
@@ -308,10 +308,10 @@ this.id = SpringContextHolder.getBean(SomeGenerator.class).nextId();
 private SomeGenerator generator; // entities are not Spring beans!
 
 // BAD: Not specifying ID type parameter (raw type)
-public class UserDoc extends BaseDoc { ... }
-// Always specify: BaseDoc<Long> or BaseDoc<String>
+public class UserDoc extends BaseMongoDoc { ... }
+// Always specify: BaseMongoDoc<Long> or BaseMongoDoc<String>
 
-// BAD: Duplicating auditing/ID fields in each entity instead of using BaseDoc
+// BAD: Duplicating auditing/ID fields in each entity instead of using BaseMongoDoc
 @Document(collection = "users")
 public class UserDoc {
     @Id
@@ -325,32 +325,32 @@ public class UserDoc {
 
 // BAD: Document class without Doc suffix
 @Document(collection = "users")
-public class User extends BaseDoc<Long> { ... }
+public class User extends BaseMongoDoc<Long> { ... }
 
 // BAD: Using Entity / Model suffix (JPA / ORM convention)
 @Document(collection = "users")
-public class UserEntity extends BaseDoc<Long> { ... }
+public class UserEntity extends BaseMongoDoc<Long> { ... }
 
 // BAD: Using Document suffix (too verbose)
 @Document(collection = "users")
-public class UserDocument extends BaseDoc<Long> { ... }
+public class UserDocument extends BaseMongoDoc<Long> { ... }
 
-// BAD: Re-declaring BaseDoc fields in subclass
-public class UserDoc extends BaseDoc<Long> {
-    private Long id; // already in BaseDoc!
-    private LocalDateTime createdAt; // already in BaseDoc!
+// BAD: Re-declaring BaseMongoDoc fields in subclass
+public class UserDoc extends BaseMongoDoc<Long> {
+    private Long id; // already in BaseMongoDoc!
+    private LocalDateTime createdAt; // already in BaseMongoDoc!
 }
 
 // BAD: Adding @Version on documents that are never updated (e.g., log documents)
 @Document(collection = "access_logs")
-public class AccessLogDoc extends BaseDoc<Long> {
+public class AccessLogDoc extends BaseMongoDoc<Long> {
     @Version
     private Long version; // logs are append-only, no concurrent updates
 }
 
 // BAD: Adding deleted on documents that are never soft-deleted
 @Document(collection = "system_configs")
-public class SystemConfigDoc extends BaseDoc<String> {
+public class SystemConfigDoc extends BaseMongoDoc<String> {
     @Field("deleted")
     private Boolean deleted = false; // configs are never logically deleted
 }
@@ -362,9 +362,9 @@ public class SpringSecurityAuditorAware implements AuditorAware<String> { ... }
 
 // BAD: Performing DB operations inside EntityCallback
 @Component
-public class BadCallback implements BeforeConvertCallback<BaseDoc<Long>> {
+public class BadCallback implements BeforeConvertCallback<BaseMongoDoc<Long>> {
     @Override
-    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+    public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
         auditLogRepository.save(new AuditLog(...)); // risk of infinite loop!
         return entity;
     }
@@ -374,9 +374,9 @@ public class BadCallback implements BeforeConvertCallback<BaseDoc<Long>> {
 ## Corrected Patterns
 
 ```java
-// OK: Extend BaseDoc<Long> with Doc suffix — no field duplication, no lifecycle methods
+// OK: Extend BaseMongoDoc<Long> with Doc suffix — no field duplication, no lifecycle methods
 @Document(collection = "users")
-public class UserDoc extends BaseDoc<Long> {
+public class UserDoc extends BaseMongoDoc<Long> {
     @Field("name")
     private String name;
 
@@ -389,7 +389,7 @@ public class UserDoc extends BaseDoc<Long> {
 
 // OK: Order document with @Version (concurrent updates expected)
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc<Long> {
+public class OrderDoc extends BaseMongoDoc<Long> {
     @Field("totalAmount")
     private BigDecimal totalAmount;
 
@@ -400,7 +400,7 @@ public class OrderDoc extends BaseDoc<Long> {
 
 // OK: Log document — no @Version, no deleted (append-only)
 @Document(collection = "access_logs")
-public class AccessLogDoc extends BaseDoc<Long> {
+public class AccessLogDoc extends BaseMongoDoc<Long> {
     @Field("userId")
     private Long userId;
 
@@ -410,7 +410,7 @@ public class AccessLogDoc extends BaseDoc<Long> {
 
 // OK: Config document using String ID (business key)
 @Document(collection = "system_configs")
-public class ConfigDoc extends BaseDoc<String> {
+public class ConfigDoc extends BaseMongoDoc<String> {
     @Field("value")
     private String value;
 
@@ -420,10 +420,10 @@ public class ConfigDoc extends BaseDoc<String> {
 
 // OK: ID generation via MongoDocIdCallback (BeforeConvertCallback)
 @Component
-public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseMongoDoc<Long>>, Ordered {
 
     @Override
-    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+    public BaseMongoDoc<Long> onBeforeConvert(BaseMongoDoc<Long> entity, String collection) {
         if (entity.getId() == null) {
             entity.setId(LeafId.next());
         }
