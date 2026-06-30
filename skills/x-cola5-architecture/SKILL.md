@@ -10,6 +10,7 @@ Alibaba COLA 5 clean architecture directory conventions. Apply when creating pro
 | Section | Reference | When to Read |
 |---------|-----------|-------------|
 | Project Structure | `references/project-structure.md` | Creating new project, initializing modules, understanding overall layout |
+| Client Module | `references/client-module.md` | Defining service-to-service API contracts, DTO, interface versioning |
 | Adapter Layer | `references/adapter-layer.md` | Writing Controller, Scheduler, message listener, or any inbound adapter |
 | App Layer | `references/app-layer.md` | Writing Application Service, Command/Query Executor, Processor |
 | Domain Layer | `references/domain-layer.md` | Writing Entity, Domain Service, Gateway interface, Domain Event |
@@ -20,6 +21,9 @@ Alibaba COLA 5 clean architecture directory conventions. Apply when creating pro
 
 ### Creating New Project
 Read `references/project-structure.md` → create modules → define base packages → set up dependencies.
+
+### Defining Service API Contracts
+Read `references/client-module.md` → define Api interfaces → define DTO → set up adapter.api to implement contracts.
 
 ### Adding New Class
 1. Identify the responsibility (inbound / orchestration / business logic / external access)
@@ -38,8 +42,9 @@ Read `references/project-structure.md` → create modules → define base packag
 adapter → app → domain ← infrastructure
 ```
 
-- **adapter** depends on **app**
+- **adapter** depends on **app** and **client**
 - **app** depends on **domain**
 - **infrastructure** depends on **domain** (implements domain gateway interfaces)
 - **domain** depends on NOTHING (no other module)
+- **client** depends on NOTHING (no other module)
 - **adapter** NEVER directly depends on **infrastructure**

@@ -1,4 +1,4 @@
-﻿# Adapter Layer
+# Adapter Layer
 
 适配层目录规约。Adapter 是系统的输入端，负责接收外部请求并转换为应用层调用。
 
@@ -8,7 +8,7 @@
 adapter
 └── src/main/java/com/{company}/{project}/adapter
     ├── controller           # Web REST 控制器（面向前端）
-    ├── api                  # 服务间调用接口实现（面向其他微服务）
+    ├── api                  # 服务间调用接口实现（仅当 client 模块存在时）
     │   ├── http             # HTTP 服务间调用（Feign Provider）
     │   └── rpc              # Dubbo RPC 服务间调用（Dubbo Provider）
     ├── scheduler            # 定时任务
@@ -175,7 +175,7 @@ order-adapter/                # 实现模块
 
 1. Controller 放 `adapter.controller`，HttpApi 放 `adapter.api.http`，RpcApi 放 `adapter.api.rpc`
 2. Cmd / Qry / VO 定义在 app 模块，adapter 通过依赖 app 使用，禁止在 adapter 中重新定义
-3. DTO 定义在 adapter.api 或独立 API jar，禁止泄露到 app 或 domain；命名：写入参 `{Resource}{Action}DTO`、读入参 `{Resource}QueryDTO`、响应 `{Resource}DTO`
+3. DTO 定义在 client 模块，禁止泄露到 app 或 domain；命名：写入参 `{Resource}{Action}DTO`、读入参 `{Resource}QueryDTO`、响应 `{Resource}DTO`
 4. Controller、HttpApi、RpcApi 中**禁止**编写业务逻辑，仅做参数校验和调用转发
 5. Adapter 层**禁止**直接依赖 domain 或 infrastructure 模块
 6. Controller HTTP 接口**必须**遵循 ``restful-convention``；**禁止**一律返回 200，成功类非 200 状态码（201、204 等）通过 ``@ResponseStatus`` 声明，错误类状态码（4xx/5xx）通过异常处理器统一返回
@@ -187,5 +187,5 @@ order-adapter/                # 实现模块
 2. 列表查询使用 `PageResult<T>` 封装分页信息
 3. DTO 与领域对象之间的转换放在 Adapter 层
 4. Scheduler 和 Listener 中捕获异常后记录日志，不要吞掉异常
-5. 服务间调用接口定义（`{Resource}Api`）抽取到独立 API jar
+5. 服务间调用接口定义（`{Resource}Api`）和 DTO 放在 client 模块，adapter.api 实现该接口
 6. controller 和 api 共享相同的 app 层入口
