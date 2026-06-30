@@ -1,4 +1,4 @@
-﻿# Document Design Rules
+# Document Design Rules
 
 ## 1. Collection and Field Naming
 

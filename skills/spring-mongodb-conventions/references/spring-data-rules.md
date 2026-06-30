@@ -1,4 +1,4 @@
-﻿# Spring Data MongoDB Rules
+# Spring Data MongoDB Rules
 
 ## 1. Entity Mapping
 

@@ -1,4 +1,4 @@
-﻿# Query Rules
+# Query Rules
 
 ## 1. Projection
 

@@ -1,4 +1,4 @@
-﻿# Base Document Class
+# Base Document Class
 
 ## 1. Overview
 

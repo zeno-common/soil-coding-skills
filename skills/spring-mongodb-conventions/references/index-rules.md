@@ -1,4 +1,4 @@
-﻿# Index Rules
+# Index Rules
 
 ## 1. Index Naming
 

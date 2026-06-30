@@ -1,4 +1,4 @@
-﻿---
+---
 name: "spring-mongodb-conventions"
 description: "Enforces Spring MongoDB database design, query, index, and Spring Data usage conventions. Invoke when designing documents/collections, writing MongoDB queries, creating indexes, or reviewing Spring Data MongoDB code."
 ---
