@@ -2,10 +2,13 @@
 
 ## 1. Overview
 
-- All Document classes must extend a common `BaseDoc` abstract class that encapsulates ID generation and auditing. Do not duplicate these fields in each entity.
+- All Document classes must extend a common `BaseDoc<ID>` abstract class that encapsulates ID and auditing. Do not duplicate these fields in each entity.
+- `BaseDoc<ID>` uses a generic type parameter for the ID field — the concrete ID type is defined by each derived class (e.g., `UserDoc extends BaseDoc<Long>`).
 - `BaseDoc` consolidates cross-cutting concerns that every document shares, ensuring consistency and reducing boilerplate.
 - Document class names use `Doc` suffix (e.g., `UserDoc`, `OrderDoc`). See `references/document-design.md` for naming rules.
-- `BaseDoc` only includes universally required fields: `id` and auditing fields. `version` (optimistic locking) and `deleted` (logical deletion) are NOT included — they are optional concerns that subclasses add as needed.
+- `BaseDoc` only includes universally required fields: `id` (generic type) and auditing fields. `version` (optimistic locking) and `deleted` (logical deletion) are NOT included — they are optional concerns that subclasses add as needed.
+- ID generation is handled by `MongoDocIdCallback` (BeforeConvertCallback EntityCallback API), NOT by `@PrePersist`. See Section 5 for details.
+- `AuditorAware` is provided by the project's dependency library. Do not implement it manually.
 
 ## 2. BaseDoc Design
 
@@ -14,10 +17,10 @@
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public abstract class BaseDoc {
+public abstract class BaseDoc<ID> {
 
     @Id
-    private Long id;
+    private ID id;
 
     @CreatedDate
     @Field("createdAt")
@@ -34,21 +37,25 @@ public abstract class BaseDoc {
     @LastModifiedBy
     @Field("updatedBy")
     private String updatedBy;
-
-    @PrePersist
-    public void prePersist() {
-        if (this.id == null) {
-            this.id = SpringContextHolder.getBean(SnowflakeIdGenerator.class).nextId();
-        }
-    }
 }
 ```
+
+- `BaseDoc<ID>` is a pure POJO — no lifecycle methods, no framework callbacks.
+- The ID type is a generic parameter. Each derived class specifies the concrete type (e.g., `BaseDoc<Long>` for distributed ID, `BaseDoc<String>` for business key).
+- ID generation is decoupled from the entity class via `MongoDocIdCallback` (see Section 5).
+- **CAUTION**: When using `Long` as ID type, distributed IDs exceed JavaScript `Number.MAX_SAFE_INTEGER` (2^53-1). Use Jackson global Long-to-String serialization to prevent precision loss on JS clients. See `references/spring-data-rules.md` Section 9 for Jackson configuration.
+
+### Why Generic ID Type
+
+- **Flexibility**: Not all documents use `Long` ID. Some may use `String` business keys (e.g., `orderId` as `_id`).
+- **Type safety**: `BaseDoc<Long>` ensures `getId()` returns `Long`, `BaseDoc<String>` returns `String` — no casting needed.
+- **Repository compatibility**: `MongoRepository<UserDoc, Long>` and `MongoRepository<ConfigDoc, String>` both work correctly with their respective ID types.
 
 ## 3. Field Design Decisions
 
 | Field | Type | Annotation | Purpose |
 |-------|------|-----------|---------|
-| `id` | `Long` | `@Id`  | Snowflake ID as int64|
+| `id` | `ID` (generic) | `@Id` | Primary key, concrete type defined by derived class |
 | `createdAt` | `LocalDateTime` | `@CreatedDate` + `@Field("createdAt")` | Auto-filled on insert by Spring Data auditing |
 | `updatedAt` | `LocalDateTime` | `@LastModifiedDate` + `@Field("updatedAt")` | Auto-filled on insert and update by Spring Data auditing |
 | `createdBy` | `String` | `@CreatedBy` + `@Field("createdBy")` | Auto-filled with current auditor on insert |
@@ -68,7 +75,7 @@ Add `@Version` only when the document may be concurrently updated by multiple th
 
 ```java
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc {
+public class OrderDoc extends BaseDoc<Long> {
 
     @Field("totalAmount")
     private BigDecimal totalAmount;
@@ -88,7 +95,7 @@ Add `deleted` only when the document requires soft delete instead of physical re
 
 ```java
 @Document(collection = "users")
-public class UserDoc extends BaseDoc {
+public class UserDoc extends BaseDoc<Long> {
 
     @Field("name")
     private String name;
@@ -98,17 +105,10 @@ public class UserDoc extends BaseDoc {
 
     @Field("deleted")
     private Boolean deleted = false;
-
-    @PrePersist
-    public void initDefaults() {
-        super.prePersist();
-        if (this.deleted == null) {
-            this.deleted = false;
-        }
-    }
 }
 ```
 
+- Use field default value `= false` for initialization. Do NOT use `@PrePersist` for setting defaults.
 - All queries on soft-delete documents must include `deleted: false` filter by default.
 - In Repository:
   ```java
@@ -125,7 +125,7 @@ public class UserDoc extends BaseDoc {
 
 ```java
 @Document(collection = "products")
-public class ProductDoc extends BaseDoc {
+public class ProductDoc extends BaseDoc<Long> {
 
     @Field("name")
     private String name;
@@ -139,98 +139,91 @@ public class ProductDoc extends BaseDoc {
     @Version
     @Field("version")
     private Long version;
-
-    @PrePersist
-    public void initDefaults() {
-        super.prePersist();
-        if (this.deleted == null) {
-            this.deleted = false;
-        }
-    }
 }
 ```
 
-## 5. Snowflake ID Generation in @PrePersist
+### Using String ID Type
 
-- Since `BaseDoc` is not a Spring-managed bean, dependency injection is not available in entity classes.
-- Use one of the following approaches to obtain `SnowflakeIdGenerator`:
+When a document uses a business key as `_id` instead of distributed ID:
 
-### Approach 1: SpringContextHolder (Recommended)
+```java
+@Document(collection = "system_configs")
+public class ConfigDoc extends BaseDoc<String> {
 
-A utility class that holds `ApplicationContext` and provides `getBean()` static access.
+    @Field("value")
+    private String value;
+
+    @Field("description")
+    private String description;
+}
+```
+
+- `ConfigDoc` uses `String` as ID type — no ID generation needed.
+- `MongoDocIdCallback` only handles `BaseDoc<Long>` and will not interfere with `BaseDoc<String>`.
+
+## 5. ID Generation via MongoDocIdCallback
+
+### Why NOT @PrePersist
+
+- `@PrePersist` / `@PostPersist` / `@PreUpdate` / `@PostUpdate` are **JPA annotations** (`javax.persistence`), NOT Spring Data MongoDB annotations. They belong to `spring-boot-starter-data-jpa`.
+- Spring Data MongoDB historically supported them through cross-store compatibility, but this is not guaranteed and not recommended.
+- Entity classes are NOT Spring-managed beans — `@Autowired` does not work, requiring hacks like `SpringContextHolder`.
+- Spring Data MongoDB officially recommends the **EntityCallback API** since Spring Data Commons 2.2.
+
+### Why BeforeConvertCallback
+
+| Feature | @PrePersist (JPA) | BeforeConvertCallback (EntityCallback) |
+|---------|-------------------|----------------------------------------|
+| Belongs to | JPA specification | Spring Data MongoDB |
+| Dependency injection | ❌ Not available (entity is not a Spring bean) | ✅ Constructor / `@Autowired` (callback is a Spring bean) |
+| SpringContextHolder hack | ❌ Required | ✅ Not needed |
+| Execution ordering | ❌ No control | ✅ `Ordered` interface |
+| Reactive support | ❌ No | ✅ `ReactiveBeforeConvertCallback` |
+| Return modified entity | ❌ Void method | ✅ Returns entity |
+| Official recommendation | ❌ Legacy / JPA only | ✅ Recommended by Spring Data |
+
+### MongoDocIdCallback Implementation
 
 ```java
 @Component
-public class SpringContextHolder implements ApplicationContextAware {
-    private static ApplicationContext context;
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
 
     @Override
-    public void setApplicationContext(ApplicationContext ctx) {
-        context = ctx;
-    }
-
-    public static <T> T getBean(Class<T> clazz) {
-        return context.getBean(clazz);
-    }
-}
-```
-
-Usage in `BaseDoc`:
-```java
-@PrePersist
-public void prePersist() {
-    if (this.id == null) {
-        this.id = SpringContextHolder.getBean(SnowflakeIdGenerator.class).nextId();
-    }
-}
-```
-
-### Approach 2: Static Field Injection
-
-Set the generator reference via `@PostConstruct` in a configuration class.
-
-```java
-public abstract class BaseDoc {
-    private static SnowflakeIdGenerator idGenerator;
-
-    public static void setSnowflakeIdGenerator(SnowflakeIdGenerator generator) {
-        idGenerator = generator;
-    }
-
-    @PrePersist
-    public void prePersist() {
-        if (this.id == null) {
-            this.id = idGenerator.nextId();
+    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+        if (entity.getId() == null) {
+            entity.setId(LeafId.next());
         }
-    }
-}
-
-@Configuration
-public class SnowflakeConfig {
-    private final SnowflakeIdGenerator generator;
-
-    public SnowflakeConfig(SnowflakeIdGenerator generator) {
-        this.generator = generator;
+        return entity;
     }
 
-    @PostConstruct
-    public void init() {
-        BaseDoc.setSnowflakeIdGenerator(generator);
-    }
-
-    @Bean
-    public SnowflakeIdGenerator snowflakeIdGenerator(
-            @Value("${snowflake.worker-id}") long workerId,
-            @Value("${snowflake.datacenter-id}") long datacenterId) {
-        return new SnowflakeIdGenerator(workerId, datacenterId);
+    @Override
+    public int getOrder() {
+        return 100; // Execute before AuditingEntityCallback (order 1000)
     }
 }
 ```
 
-### What NOT to Do
+- `BeforeConvertCallback<BaseDoc<Long>>`: Only intercepts entities extending `BaseDoc<Long>`. Entities using `BaseDoc<String>` are not affected.
+- `LeafId.next()`: Generates a distributed unique ID (Long). Provided by the project's dependency library.
+- `getOrder()`: Controls execution order. AuditingEntityCallback runs at order 1000 by default. ID generation should run before auditing, so use a lower order value (e.g., 100).
 
-- **Do not** pass `SnowflakeIdGenerator` via constructor in entity classes — Spring Data MongoDB requires a no-arg constructor.
-- **Do not** use `@Autowired` in entity classes — entities are not Spring-managed beans.
+### EntityCallback Execution Flow
+
+```
+Application calls repository.save(entity)
+  │
+  ├─ 1. MongoDocIdCallback.onBeforeConvert()    (order 100) — generates ID if null
+  ├─ 2. AuditingEntityCallback.onBeforeConvert() (order 1000) — sets auditing fields
+  ├─ 3. MongoDB driver converts entity to BSON
+  └─ 4. Document inserted into collection
+```
+
+### Prohibitions
+
+- Do NOT use `@PrePersist` / `@PostPersist` / `@PreUpdate` / `@PostUpdate` in entity classes — these are JPA annotations.
+- Do NOT use `SpringContextHolder` or static field injection to obtain Spring beans in entity classes.
+- Do NOT perform database operations inside EntityCallback (risk of infinite loops).
+- Do NOT add business logic in EntityCallback — it should only handle cross-cutting concerns (ID generation, auditing).
 
 ## 6. Prerequisites Configuration
 
@@ -246,21 +239,13 @@ public class MongoConfig {
         return new MongoTransactionManager(dbFactory);
     }
 }
-
-@Component
-public class SpringSecurityAuditorAware implements AuditorAware<String> {
-    @Override
-    public Optional<String> getCurrentAuditor() {
-        return Optional.of(
-            SecurityContextHolder.getContext().getAuthentication().getName()
-        );
-    }
-}
 ```
 
 - `@EnableMongoAuditing`: Activates `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`.
-- `AuditorAware<String>` bean: Provides the current user for `@CreatedBy` / `@LastModifiedBy`.
+- `AuditorAware<String>` bean: Provided by the project's dependency library. Do not implement it manually.
 - `MongoTransactionManager`: Required if using `@Transactional` (optional if no multi-doc transactions).
+- `LeafId`: Provided by the project's dependency library. No additional configuration needed.
+- `MongoDocIdCallback` is auto-detected via `@Component` — no additional configuration needed.
 
 ## 7. Entity Class Example
 
@@ -269,7 +254,7 @@ public class SpringSecurityAuditorAware implements AuditorAware<String> {
 @CompoundIndexes({
     @CompoundIndex(name = "idx_status_createdAt", def = "{'status': 1, 'createdAt': -1}")
 })
-public class UserDoc extends BaseDoc {
+public class UserDoc extends BaseDoc<Long> {
 
     @Field("name")
     private String name;
@@ -282,30 +267,21 @@ public class UserDoc extends BaseDoc {
 
     @Field("deleted")
     private Boolean deleted = false;
-
-    @PrePersist
-    public void initDefaults() {
-        super.prePersist();
-        if (this.deleted == null) {
-            this.deleted = false;
-        }
-    }
 }
 ```
+
+- No lifecycle methods needed — ID generation is handled by `MongoDocIdCallback`, auditing by Spring Data auditing.
+- Field defaults (e.g., `deleted = false`) are set via Java field initializers, not `@PrePersist`.
 
 ## 8. Rules for Extending BaseDoc
 
 - Document class names must use `Doc` suffix (e.g., `UserDoc`, `OrderDoc`, `ProductDoc`).
+- All derived classes must specify the concrete ID type parameter (e.g., `extends BaseDoc<Long>` or `extends BaseDoc<String>`).
 - Never re-declare `id`, `createdAt`, `updatedAt`, `createdBy`, `updatedBy` in subclasses.
 - Subclasses must use `@Document(collection = "...")` annotation explicitly with the collection name.
-- Subclasses may override `@PrePersist` but must call `super.prePersist()` first.
-  ```java
-  @PrePersist
-  public void initDefaults() {
-      super.prePersist(); // MUST call super first — ensures ID generation
-      // entity-specific defaults here
-  }
-  ```
+- Do NOT use `@PrePersist` / `@PreUpdate` / `@PostPersist` / `@PostUpdate` in entity classes — these are JPA annotations, not Spring Data MongoDB annotations.
+- Use Java field initializers for default values (e.g., `deleted = false`), not lifecycle callbacks.
+- If entity-specific cross-cutting logic is needed, create a dedicated `BeforeConvertCallback` or `BeforeSaveCallback` bean.
 - Do not add `@PreUpdate` in subclasses for audit fields — `@LastModifiedDate` / `@LastModifiedBy` are handled by Spring Data auditing automatically.
 - Add `@Version` only when the document faces concurrent updates. Do not add it proactively.
 - Add `deleted` only when the document requires soft delete. Do not add it proactively.
@@ -313,6 +289,28 @@ public class UserDoc extends BaseDoc {
 ## Anti-Patterns
 
 ```java
+// BAD: Using @PrePersist (JPA annotation) in Spring Data MongoDB entity
+@PrePersist
+public void prePersist() {
+    if (this.id == null) {
+        this.id = someIdGenerator.nextId();
+    }
+}
+// @PrePersist belongs to javax.persistence (JPA), not Spring Data MongoDB.
+// Use BeforeConvertCallback instead. See Section 5.
+
+// BAD: Using SpringContextHolder to obtain Spring beans in entity class
+this.id = SpringContextHolder.getBean(SomeGenerator.class).nextId();
+// Entity classes are not Spring-managed beans. Use EntityCallback for DI.
+
+// BAD: Using @Autowired in entity class
+@Autowired
+private SomeGenerator generator; // entities are not Spring beans!
+
+// BAD: Not specifying ID type parameter (raw type)
+public class UserDoc extends BaseDoc { ... }
+// Always specify: BaseDoc<Long> or BaseDoc<String>
+
 // BAD: Duplicating auditing/ID fields in each entity instead of using BaseDoc
 @Document(collection = "users")
 public class UserDoc {
@@ -327,54 +325,58 @@ public class UserDoc {
 
 // BAD: Document class without Doc suffix
 @Document(collection = "users")
-public class User extends BaseDoc { ... }
+public class User extends BaseDoc<Long> { ... }
 
 // BAD: Using Entity / Model suffix (JPA / ORM convention)
 @Document(collection = "users")
-public class UserEntity extends BaseDoc { ... }
+public class UserEntity extends BaseDoc<Long> { ... }
 
 // BAD: Using Document suffix (too verbose)
 @Document(collection = "users")
-public class UserDocument extends BaseDoc { ... }
-
-// BAD: Overriding @PrePersist without calling super
-@PrePersist
-public void initDefaults() {
-    // missing super.prePersist() — Snowflake ID not generated!
-    this.someField = "default";
-}
-
-// BAD: Using @Autowired in entity class
-@Autowired
-private SnowflakeIdGenerator generator; // entities are not Spring beans!
+public class UserDocument extends BaseDoc<Long> { ... }
 
 // BAD: Re-declaring BaseDoc fields in subclass
-public class UserDoc extends BaseDoc {
+public class UserDoc extends BaseDoc<Long> {
     private Long id; // already in BaseDoc!
     private LocalDateTime createdAt; // already in BaseDoc!
 }
 
 // BAD: Adding @Version on documents that are never updated (e.g., log documents)
 @Document(collection = "access_logs")
-public class AccessLogDoc extends BaseDoc {
+public class AccessLogDoc extends BaseDoc<Long> {
     @Version
     private Long version; // logs are append-only, no concurrent updates
 }
 
 // BAD: Adding deleted on documents that are never soft-deleted
 @Document(collection = "system_configs")
-public class SystemConfigDoc extends BaseDoc {
+public class SystemConfigDoc extends BaseDoc<String> {
     @Field("deleted")
     private Boolean deleted = false; // configs are never logically deleted
+}
+
+// BAD: Implementing AuditorAware manually when provided by dependency library
+@Component
+public class SpringSecurityAuditorAware implements AuditorAware<String> { ... }
+// AuditorAware is provided by the dependency library. Do not re-implement.
+
+// BAD: Performing DB operations inside EntityCallback
+@Component
+public class BadCallback implements BeforeConvertCallback<BaseDoc<Long>> {
+    @Override
+    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+        auditLogRepository.save(new AuditLog(...)); // risk of infinite loop!
+        return entity;
+    }
 }
 ```
 
 ## Corrected Patterns
 
 ```java
-// OK: Extend BaseDoc with Doc suffix — no field duplication
+// OK: Extend BaseDoc<Long> with Doc suffix — no field duplication, no lifecycle methods
 @Document(collection = "users")
-public class UserDoc extends BaseDoc {
+public class UserDoc extends BaseDoc<Long> {
     @Field("name")
     private String name;
 
@@ -387,7 +389,7 @@ public class UserDoc extends BaseDoc {
 
 // OK: Order document with @Version (concurrent updates expected)
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc {
+public class OrderDoc extends BaseDoc<Long> {
     @Field("totalAmount")
     private BigDecimal totalAmount;
 
@@ -398,7 +400,7 @@ public class OrderDoc extends BaseDoc {
 
 // OK: Log document — no @Version, no deleted (append-only)
 @Document(collection = "access_logs")
-public class AccessLogDoc extends BaseDoc {
+public class AccessLogDoc extends BaseDoc<Long> {
     @Field("userId")
     private Long userId;
 
@@ -406,12 +408,35 @@ public class AccessLogDoc extends BaseDoc {
     private String action;
 }
 
-// OK: Override @PrePersist with super call
-@PrePersist
-public void initDefaults() {
-    super.prePersist(); // ensures ID generation
-    if (this.deleted == null) {
-        this.deleted = false;
+// OK: Config document using String ID (business key)
+@Document(collection = "system_configs")
+public class ConfigDoc extends BaseDoc<String> {
+    @Field("value")
+    private String value;
+
+    @Field("description")
+    private String description;
+}
+
+// OK: ID generation via MongoDocIdCallback (BeforeConvertCallback)
+@Component
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+
+    @Override
+    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+        if (entity.getId() == null) {
+            entity.setId(LeafId.next());
+        }
+        return entity;
+    }
+
+    @Override
+    public int getOrder() {
+        return 100;
     }
 }
+
+// OK: Field default values via Java initializer (not @PrePersist)
+@Field("deleted")
+private Boolean deleted = false;
 ```

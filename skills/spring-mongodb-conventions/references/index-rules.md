@@ -104,11 +104,11 @@
 - Ideal shard key properties:
   - High cardinality (many distinct values)
   - Low frequency (evenly distributed, no hot chunks)
-  - Non-monotonic (avoid Snowflake ID `_id` or `createdAt` as sole shard key -- they are time-ordered and cause hot shard on inserts)
+  - Non-monotonic (avoid time-ordered `_id` or `createdAt` as sole shard key -- they are time-ordered and cause hot shard on inserts)
   - Targeted queries (queries include the shard key to be routed to a single shard)
 - OK: Hashed shard key on high-cardinality field: `{ userId: "hashed" }`
 - OK: Compound shard key with low-cardinality prefix: `{ region: 1, userId: 1 }`
-- BAD: Monotonically increasing shard key: `{ _id: 1 }` (Snowflake IDs are time-ordered, all inserts go to one shard)
+- BAD: Monotonically increasing shard key: `{ _id: 1 }` (time-ordered IDs cause all inserts to go to one shard)
 
 ## Anti-Patterns
 

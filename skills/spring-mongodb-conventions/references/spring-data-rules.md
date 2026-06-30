@@ -4,11 +4,15 @@
 
 - Always annotate Document classes with `@Document(collection = "collection_name")`. Never rely on class name defaulting.
 - Document class names use `Doc` suffix (e.g., `UserDoc`, `OrderDoc`). See `references/document-design.md` for naming rules.
-- All entities must extend `BaseDoc` (see `references/base-document.md`). Do not re-declare ID or auditing fields.
+- All entities must extend `BaseDoc<ID>` (see `references/base-document.md`). Do not re-declare ID or auditing fields.
   ```java
   @Document(collection = "users")
-  public class UserDoc extends BaseDoc { ... }
+  public class UserDoc extends BaseDoc<Long> { ... }
   ```
+- Always specify the concrete ID type parameter. Do not use raw type `BaseDoc`.
+  - OK: `extends BaseDoc<Long>` (distributed ID)
+  - OK: `extends BaseDoc<String>` (business key)
+  - BAD: `extends BaseDoc` (raw type, no type safety)
 - Use `@Field("fieldName")` when Java field name differs from MongoDB field name, or to explicitly declare the mapping.
   ```java
   @Field("createdAt")
@@ -19,15 +23,16 @@
   @BsonRepresentation(BsonType.DECIMAL128)
   private BigDecimal amount;
   ```
-- Do not use `@DBRef` unless absolutely necessary. It creates a separate query (N+1 problem). Prefer manual references (storing the Snowflake ID as a `Long` field).
+- Do not use `@DBRef` unless absolutely necessary. It creates a separate query (N+1 problem). Prefer manual references (storing the ID as a `Long` field).
   - BAD: `@DBRef private List<OrderDoc> orders;`
   - OK: `@Field private List<Long> orderIds;`
 
 ## 2. Repository Design
 
-- Extend `MongoRepository<DocClass, Long>` for standard CRUD operations.
+- Extend `MongoRepository<DocClass, ID>` for standard CRUD operations. The ID type must match the `BaseDoc<ID>` type parameter.
   ```java
   public interface UserRepository extends MongoRepository<UserDoc, Long> { ... }
+  public interface ConfigRepository extends MongoRepository<ConfigDoc, String> { ... }
   ```
 - Define derived query methods with clear naming conventions:
   ```java
@@ -90,114 +95,84 @@
 ## 5. Auditing
 
 - Enable MongoDB auditing with `@EnableMongoAuditing` on configuration class.
-- Auditing fields (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`) are defined in `BaseDoc` with `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`. See `references/base-document.md` for full design.
-- Implement `AuditorAware<String>` to provide the current user:
+- Auditing fields (`createdAt`, `updatedAt`, `createdBy`, `updatedBy`) are defined in `BaseDoc<ID>` with `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`. See `references/base-document.md` for full design.
+- `AuditorAware<String>` is provided by the project's dependency library. Do not implement it manually.
+
+## 6. EntityCallback API
+
+- Spring Data MongoDB recommends **EntityCallback API** for lifecycle hooks, NOT JPA annotations (`@PrePersist` / `@PostPersist` / `@PreUpdate` / `@PostUpdate`).
+- `@PrePersist` and related annotations belong to `javax.persistence` (JPA), not Spring Data MongoDB. Do NOT use them in MongoDB entity classes.
+- Available EntityCallback interfaces:
+
+| Callback | Timing | Use Case |
+|----------|--------|----------|
+| `BeforeConvertCallback` | Before entity is converted to BSON | ID generation, field defaults |
+| `BeforeSaveCallback` | Before document is saved to MongoDB | Last-minute modifications |
+| `AfterSaveCallback` | After document is saved | Post-save side effects |
+| `AfterConvertCallback` | After BSON is converted to entity | Post-load initialization |
+
+- ID generation is handled by `MongoDocIdCallback` (see `references/base-document.md` Section 5):
   ```java
   @Component
-  public class SpringSecurityAuditorAware implements AuditorAware<String> {
+  public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+
       @Override
-      public Optional<String> getCurrentAuditor() {
-          return Optional.of(
-              SecurityContextHolder.getContext().getAuthentication().getName()
-          );
+      public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+          if (entity.getId() == null) {
+              entity.setId(LeafId.next());
+          }
+          return entity;
+      }
+
+      @Override
+      public int getOrder() {
+          return 100; // Before AuditingEntityCallback (order 1000)
       }
   }
   ```
-
-## 6. Lifecycle Events
-
-- Use `@PrePersist` / `@PostPersist` / `@PreUpdate` / `@PostUpdate` for lifecycle hooks.
-- ID generation is handled in `BaseDoc.prePersist()`. Subclasses should only override for entity-specific logic and must call `super.prePersist()` first.
-  ```java
-  @PrePersist
-  public void initDefaults() {
-      super.prePersist(); // MUST call super first
-      // entity-specific logic here
-  }
-  ```
-- Do not perform database operations inside lifecycle callbacks (risk of infinite loops).
+- `MongoDocIdCallback` only handles `BaseDoc<Long>`. Entities using `BaseDoc<String>` are not affected.
+- `LeafId.next()` generates a distributed unique ID (Long). Provided by the project's dependency library.
+- Use `Ordered` interface to control execution order. AuditingEntityCallback runs at order 1000 by default.
+- For reactive applications, use `ReactiveBeforeConvertCallback` / `ReactiveAfterSaveCallback` etc.
+- Do not perform database operations inside EntityCallback (risk of infinite loops).
 
 ## 7. Optimistic Locking
 
-- Add `@Version` only when the document faces concurrent updates. It is NOT included in `BaseDoc` — add it per entity as needed.
+- Add `@Version` field only when concurrent updates are expected. Not all documents need this.
   ```java
   @Document(collection = "orders")
-  public class OrderDoc extends BaseDoc {
+  public class OrderDoc extends BaseDoc<Long> {
       @Version
       @Field("version")
       private Long version;
   }
   ```
-- Spring Data MongoDB automatically increments the version on each update and throws `OptimisticLockingFailureException` on conflict.
-- Handle `OptimisticLockingFailureException` with retry logic in the service layer.
-- Do not add `@Version` on append-only documents (e.g., log documents).
+- Spring Data MongoDB automatically increments `version` on each update.
+- On conflict, throws `OptimisticLockingFailureException`. Handle with retry logic in the service layer.
 
-## 8. Transaction Management
+## 8. Transactions
 
-- Configure `MongoTransactionManager` bean to enable `@Transactional`:
+- Use `@Transactional` for multi-document operations that require atomicity.
+- Single document operations are already atomic — do not wrap them in transactions unnecessarily.
+- Transactions require a `MongoTransactionManager` bean and a Replica Set (not supported on standalone MongoDB).
   ```java
-  @Bean
-  public MongoTransactionManager transactionManager(MongoDatabaseFactory dbFactory) {
-      return new MongoTransactionManager(dbFactory);
+  @Transactional
+  public void createOrder(OrderDoc order, List<OrderItemDoc> items) {
+      orderRepository.save(order);
+      orderItemRepository.saveAll(items);
   }
   ```
-- Use `@Transactional(rollbackFor = Exception.class)` for multi-document operations.
-- Keep transactions short. Do not include external API calls or long computations inside transactions.
-- Transactions require a replica set (not supported on standalone MongoDB).
-- Prefer single-document atomicity (embedding) over multi-document transactions.
+- Keep transactions short — long-running transactions hold locks and can cause performance issues.
+- Do not use transactions for read-only operations.
 
-## 9. Type Mapping and Converters
+## 9. Configuration
 
-- Register custom `Converter` implementations for complex type mappings:
-  ```java
-  @ReadingConverter
-  public static class DateToLocalDateTimeConverter
-          implements Converter<Date, LocalDateTime> {
-      @Override
-      public LocalDateTime convert(Date source) {
-          return source.toInstant()
-              .atZone(ZoneId.systemDefault())
-              .toLocalDateTime();
-      }
-  }
-  ```
-- Register converters via `MongoCustomConversions`:
-  ```java
-  @Bean
-  public MongoCustomConversions customConversions() {
-      return new MongoCustomConversions(List.of(
-          new DateToLocalDateTimeConverter(),
-          new LocalDateTimeToDateConverter()
-      ));
-  }
-  ```
-- Prefer `LocalDateTime` / `Instant` over `java.util.Date` in entity classes.
-
-## 10. Batch Operations
-
-- Use `mongoTemplate.bulkOps()` for efficient batch writes:
-  ```java
-  BulkOperations bulkOps = mongoTemplate.bulkOps(
-      BulkOperations.BulkMode.UNORDERED, UserDoc.class
-  );
-  for (UserDoc user : users) {
-      bulkOps.insert(user);
-  }
-  bulkOps.execute();
-  ```
-- Use `BulkMode.UNORDERED` for independent operations (parallel execution, faster).
-- Use `BulkMode.ORDERED` when operations have dependencies (stops on first error).
-- For `saveAll()` on `MongoRepository`, be aware it performs individual `save` calls. Use `bulkOps` for large batches.
-- Pre-generate Snowflake IDs for all documents before batch insert to ensure consistency.
-
-## 11. Configuration Best Practices
-
-- Configure connection pooling appropriately:
+- Connection string format:
   ```yaml
   spring:
     data:
       mongodb:
-        uri: mongodb://host:port/db?maxPoolSize=50&minPoolSize=10&maxIdleTimeMS=60000
+        uri: mongodb://user:pass@host1:27017,host2:27017/dbname?replicaSet=rs0&connectTimeoutMS=60000
   ```
 - Enable auto-index creation only in development, not production:
   ```yaml
@@ -213,22 +188,10 @@
                      def = "{'status': 1, 'createdAt': -1}")
   })
   @Document(collection = "orders")
-  public class OrderDoc extends BaseDoc { ... }
+  public class OrderDoc extends BaseDoc<Long> { ... }
   ```
 - In production, manage indexes via migration scripts (Mongock, etc.), not auto-index-creation.
-- Configure Snowflake ID generator as a Spring bean:
-  ```java
-  @Configuration
-  public class SnowflakeConfig {
-      @Bean
-      public SnowflakeIdGenerator snowflakeIdGenerator(
-              @Value("${snowflake.worker-id}") long workerId,
-              @Value("${snowflake.datacenter-id}") long datacenterId) {
-          return new SnowflakeIdGenerator(workerId, datacenterId);
-      }
-  }
-  ```
-- Configure Jackson to handle Long ID serialization globally (alternative to per-field `@JsonSerialize`):
+- Configure Jackson to handle Long ID serialization globally (recommended for `BaseDoc<Long>` entities):
   ```java
   @Configuration
   public class JacksonConfig {
@@ -243,11 +206,35 @@
       }
   }
   ```
-  - Note: Global Long-to-String serialization affects all Long fields. If only ID fields need this, prefer per-field `@JsonSerialize` in `BaseDoc`.
+  - Since `BaseDoc<ID>` uses a generic type parameter, `@JsonSerialize(using = ToStringSerializer.class)` cannot be placed on the `id` field in the base class. Use global Jackson Long-to-String serialization instead.
+  - Note: Global Long-to-string serialization affects all Long fields. If only ID fields need this, use per-field `@JsonSerialize` in each derived class that uses `BaseDoc<Long>`.
 
 ## Anti-Patterns
 
 ```java
+// BAD: Using @PrePersist (JPA annotation) in Spring Data MongoDB entity
+@PrePersist
+public void prePersist() {
+    if (this.id == null) {
+        this.id = someIdGenerator.nextId();
+    }
+}
+// @PrePersist belongs to javax.persistence (JPA), not Spring Data MongoDB.
+// Use BeforeConvertCallback instead. See references/base-document.md Section 5.
+
+// BAD: Using SpringContextHolder to obtain Spring beans in entity class
+this.id = SpringContextHolder.getBean(SomeGenerator.class).nextId();
+// Entity classes are not Spring-managed beans. Use EntityCallback for DI.
+
+// BAD: Using raw type BaseDoc without ID type parameter
+public class UserDoc extends BaseDoc { ... }
+// Always specify: BaseDoc<Long> or BaseDoc<String>
+
+// BAD: Implementing AuditorAware manually when provided by dependency library
+@Component
+public class SpringSecurityAuditorAware implements AuditorAware<String> { ... }
+// AuditorAware is provided by the dependency library. Do not re-implement.
+
 // BAD: @DBRef causing N+1 queries
 @DBRef
 private List<OrderDoc> orders;
@@ -264,40 +251,37 @@ repository.save(user); // replaces entire document
 // BAD: Auto-index-creation in production
 // spring.data.mongodb.auto-index-creation=true
 
-// BAD: Performing DB operations in lifecycle callback
-@PrePersist
-public void initDefaults() {
-    auditLogRepository.save(new AuditLog(...)); // risk of infinite loop
+// BAD: Performing DB operations inside EntityCallback
+@Component
+public class BadCallback implements BeforeConvertCallback<BaseDoc<Long>> {
+    @Override
+    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+        auditLogRepository.save(new AuditLog(...)); // risk of infinite loop!
+        return entity;
+    }
 }
 
 // BAD: Relying on MongoDB auto-generated ObjectId
-// Let MongoDB generate _id as ObjectId instead of using Snowflake ID
+// Let MongoDB generate _id as ObjectId instead of using distributed ID
 
 // BAD: Document class without Doc suffix
 @Document(collection = "users")
-public class User extends BaseDoc { ... }
+public class User extends BaseDoc<Long> { ... }
 
 // BAD: Using Entity / Model suffix (JPA / ORM convention)
 @Document(collection = "users")
-public class UserEntity extends BaseDoc { ... }
+public class UserEntity extends BaseDoc<Long> { ... }
 
 // BAD: Using Document suffix (too verbose)
 @Document(collection = "users")
-public class UserDocument extends BaseDoc { ... }
+public class UserDocument extends BaseDoc<Long> { ... }
 
 // BAD: Duplicating auditing/ID fields in each entity instead of using BaseDoc
 // See references/base-document.md for the correct BaseDoc design
 
-// BAD: Overriding @PrePersist without calling super
-@PrePersist
-public void initDefaults() {
-    // missing super.prePersist() — Snowflake ID not generated!
-    this.someField = "default";
-}
-
 // BAD: Adding @Version on documents that are never updated
 @Document(collection = "access_logs")
-public class AccessLogDoc extends BaseDoc {
+public class AccessLogDoc extends BaseDoc<Long> {
     @Version
     private Long version; // logs are append-only, no concurrent updates
 }
@@ -306,7 +290,25 @@ public class AccessLogDoc extends BaseDoc {
 ## Corrected Patterns
 
 ```java
-// OK: Manual reference instead of @DBRef (using Snowflake ID as Long)
+// OK: ID generation via MongoDocIdCallback (BeforeConvertCallback)
+@Component
+public class MongoDocIdCallback implements BeforeConvertCallback<BaseDoc<Long>>, Ordered {
+
+    @Override
+    public BaseDoc<Long> onBeforeConvert(BaseDoc<Long> entity, String collection) {
+        if (entity.getId() == null) {
+            entity.setId(LeafId.next());
+        }
+        return entity;
+    }
+
+    @Override
+    public int getOrder() {
+        return 100;
+    }
+}
+
+// OK: Manual reference instead of @DBRef (using Long ID)
 @Field
 private List<Long> orderIds;
 
@@ -326,9 +328,9 @@ mongoTemplate.updateFirst(
 // OK: Manage indexes via migration scripts in production
 // Use Mongock or custom migration scripts
 
-// OK: Extend BaseDoc with Doc suffix — no field duplication
+// OK: Extend BaseDoc<Long> with Doc suffix — no field duplication
 @Document(collection = "users")
-public class UserDoc extends BaseDoc {
+public class UserDoc extends BaseDoc<Long> {
     @Field("name")
     private String name;
 
@@ -336,23 +338,21 @@ public class UserDoc extends BaseDoc {
     private String email;
 }
 
+// OK: Extend BaseDoc<String> for business key ID
+@Document(collection = "system_configs")
+public class ConfigDoc extends BaseDoc<String> {
+    @Field("value")
+    private String value;
+}
+
 // OK: Add @Version only when concurrent updates are expected
 @Document(collection = "orders")
-public class OrderDoc extends BaseDoc {
+public class OrderDoc extends BaseDoc<Long> {
     @Field("totalAmount")
     private BigDecimal totalAmount;
 
     @Version
     @Field("version")
     private Long version;
-}
-
-// OK: Override @PrePersist with super call
-@PrePersist
-public void initDefaults() {
-    super.prePersist(); // ensures ID generation
-    if (this.deleted == null) {
-        this.deleted = false;
-    }
 }
 ```
