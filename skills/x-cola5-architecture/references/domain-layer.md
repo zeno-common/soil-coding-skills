@@ -4,14 +4,25 @@
 
 ## 目录结构
 
+Domain 层按领域聚合组织目录，每个领域独立子包，保护聚合边界。
+
 ```
 domain
 └── src/main/java/com/{company}/{project}/domain
-    ├── entity              # 领域实体（聚合根、实体、值对象）
-    ├── service             # 领域服务
-    ├── gateway             # 网关接口（防腐层接口）
-    └── event               # 领域事件（可选）
+    ├── {domain1}/                   # 领域 1（如 order）
+    │   ├── entity/                  # 领域实体（聚合根、实体、值对象）
+    │   ├── service/                 # 领域服务
+    │   ├── gateway/                 # 网关接口（防腐层接口）
+    │   └── event/                   # 领域事件（可选）
+    ├── {domain2}/                   # 领域 2（如 inventory）
+    │   ├── entity/
+    │   ├── service/
+    │   └── gateway/
+    └── shared/                      # 跨领域共享（可选）
+        └── event/                   # 跨领域共享事件
 ```
+
+> 按领域聚合划分目录，而非按技术职责（entity/service/gateway）平铺。新增领域只需新增子包，不修改现有代码。
 
 ## entity 包
 
@@ -183,12 +194,13 @@ registerEvent()         save()                  publish()               handle()
 ## Mandatory 规则
 
 1. Domain 模块**禁止**依赖 app、adapter、infrastructure 模块
-2. 聚合根必须保护内部一致性，外部不能直接修改内部状态
-3. Gateway 接口方法命名必须使用领域语言，禁止 CRUD 风格命名
-4. 值对象（`V` 后缀）必须不可变（无 setter，所有字段 final）
-5. 领域事件命名必须使用过去时态
-6. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
-7. App 层**必须**通过领域服务的工厂方法创建实体，**禁止**在 App 层直接 `new` 领域实体
+2. Domain 层**必须**按领域聚合组织目录，每个领域一个独立子包，**禁止**按技术职责（entity/service/gateway）平铺
+3. 聚合根必须保护内部一致性，外部不能直接修改内部状态
+4. Gateway 接口方法命名必须使用领域语言，禁止 CRUD 风格命名
+5. 值对象（`V` 后缀）必须不可变（无 setter，所有字段 final）
+6. 领域事件命名必须使用过去时态
+7. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
+8. App 层**必须**通过领域服务的工厂方法创建实体，**禁止**在 App 层直接 `new` 领域实体
 
 ## Recommended 规则
 

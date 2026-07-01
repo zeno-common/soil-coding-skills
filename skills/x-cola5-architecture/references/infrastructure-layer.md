@@ -4,18 +4,29 @@
 
 ## 目录结构
 
+Infrastructure 层按领域聚合组织目录，每个领域独立子包，与 domain 层的领域子包一一对应。跨领域共享的基础设施放在 `common` 子包。
+
 ```
 infrastructure
 └── src/main/java/com/{company}/{project}/infrastructure
-    ├── gateway
-    │   └── impl            # Gateway 接口实现
-    ├── mapper              # MyBatis Mapper 接口
-    ├── dataobject          # 数据库映射对象（DO）
-    ├── client              # 外部服务客户端（RPC、HTTP）
-    ├── event               # 领域事件发布实现
-    ├── config              # 基础设施配置
-    └── common              # 基础设施通用工具
+    ├── {domain1}/                   # 领域 1（如 order）
+    │   ├── gateway/
+    │   │   └── impl/                # Gateway 接口实现
+    │   ├── mapper/                  # MyBatis Mapper 接口
+    │   └── dataobject/              # 数据库映射对象（DO）
+    ├── {domain2}/                   # 领域 2（如 inventory）
+    │   ├── gateway/
+    │   │   └── impl/
+    │   ├── mapper/
+    │   └── dataobject/
+    └── common/                      # 跨领域共享基础设施
+        ├── client/                  # 外部服务客户端（RPC、HTTP）
+        ├── event/                   # 领域事件发布实现
+        ├── config/                  # 基础设施配置
+        └── util/                    # 基础设施通用工具
 ```
+
+> 按领域聚合划分目录，GatewayImpl / Mapper / DO 与领域强绑定，按领域内聚。跨领域共享的 client、event publisher、config 放在 `common` 子包。
 
 ## gateway/impl 包
 
@@ -113,11 +124,12 @@ public class OrderGatewayImpl implements OrderGateway {
 
 ## Mandatory 规则
 
-1. Gateway 实现类命名必须以 `GatewayImpl` 结尾，必须实现 domain 模块中定义的 Gateway 接口
-2. DO 对象**禁止**泄露到 domain 或 app 层
-3. Mapper 接口**禁止**被 domain 或 app 层直接引用，必须通过 GatewayImpl 间接使用
-4. 外部系统的数据结构**禁止**泄露到 domain 层，必须在 client 或 GatewayImpl 中转换
-5. 基础设施配置类**禁止**包含业务逻辑
+1. Infrastructure 层**必须**按领域聚合组织目录，每个领域一个独立子包，与 domain 层领域子包一一对应，**禁止**按技术职责平铺
+2. Gateway 实现类命名必须以 `GatewayImpl` 结尾，必须实现 domain 模块中定义的 Gateway 接口
+3. DO 对象**禁止**泄露到 domain 或 app 层
+4. Mapper 接口**禁止**被 domain 或 app 层直接引用，必须通过 GatewayImpl 间接使用
+5. 外部系统的数据结构**禁止**泄露到 domain 层，必须在 client 或 GatewayImpl 中转换
+6. 基础设施配置类**禁止**包含业务逻辑
 
 ## Recommended 规则
 

@@ -4,6 +4,8 @@
 
 ## 目录结构
 
+Adapter 层按外部协议组织目录（HTTP / RPC / MQ / 定时任务），**不按领域划分**。一个前端页面或 MQ topic 可能涉及多个领域，按协议分包更清晰。
+
 ```
 adapter
 └── src/main/java/com/{company}/{project}/adapter
@@ -15,6 +17,8 @@ adapter
     ├── listener             # 消息监听（MQ Consumer）
     └── config               # 适配层配置（仅限适配层专用配置）
 ```
+
+> Adapter 层是外部协议适配入口，与 domain/app/infrastructure 的业务层不同，**不按领域划分**，按协议组织更合理。
 
 ## controller 包
 
@@ -178,14 +182,15 @@ order-adapter/                # 实现模块
 
 ## Mandatory 规则
 
-1. Controller 放 `adapter.controller`，HttpApi 放 `adapter.api.http`，RpcApi 放 `adapter.api.rpc`
-2. Cmd / Qry / VO 定义在 app 模块，adapter 通过依赖 app 使用，禁止在 adapter 中重新定义
-3. DTO 定义在 client 模块，禁止泄露到 app 或 domain；命名：写入参 `{Resource}{Action}DTO`、读入参 `{Resource}QueryDTO`、响应 `{Resource}DTO`
-4. Controller、HttpApi、RpcApi 中**禁止**编写业务逻辑，仅做参数校验和调用转发
-5. Adapter 层**禁止**直接依赖 domain 或 infrastructure 模块
-6. Controller HTTP 接口**必须**遵循 ``restful-convention``；**禁止**一律返回 200，成功类非 200 状态码（201、204 等）通过 ``@ResponseStatus`` 声明，错误类状态码（4xx/5xx）通过异常处理器统一返回
-7. http 与 rpc **禁止**各自定义独立的 DTO，必须共享同一套 DTO 类型
-8. Listener **禁止**直接调用 domain service 或 infrastructure，必须通过 app 层 EventHandler 间接调用
+1. Adapter 层**禁止**按领域划分目录，必须按外部协议（controller / api / listener / scheduler）组织
+2. Controller 放 `adapter.controller`，HttpApi 放 `adapter.api.http`，RpcApi 放 `adapter.api.rpc`
+3. Cmd / Qry / VO 定义在 app 模块，adapter 通过依赖 app 使用，禁止在 adapter 中重新定义
+4. DTO 定义在 client 模块，禁止泄露到 app 或 domain；命名：写入参 `{Resource}{Action}DTO`、读入参 `{Resource}QueryDTO`、响应 `{Resource}DTO`
+5. Controller、HttpApi、RpcApi 中**禁止**编写业务逻辑，仅做参数校验和调用转发
+6. Adapter 层**禁止**直接依赖 domain 或 infrastructure 模块
+7. Controller HTTP 接口**必须**遵循 ``restful-convention``；**禁止**一律返回 200，成功类非 200 状态码（201、204 等）通过 ``@ResponseStatus`` 声明，错误类状态码（4xx/5xx）通过异常处理器统一返回
+8. http 与 rpc **禁止**各自定义独立的 DTO，必须共享同一套 DTO 类型
+9. Listener **禁止**直接调用 domain service 或 infrastructure，必须通过 app 层 EventHandler 间接调用
 
 ## Recommended 规则
 

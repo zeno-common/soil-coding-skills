@@ -4,19 +4,33 @@
 
 ## 目录结构
 
+App 层按领域聚合组织目录，每个领域独立子包，与 domain 层的领域子包一一对应。
+
 ```
 app
 └── src/main/java/com/{company}/{project}/app
-    ├── service             # 应用服务（用例入口）
-    ├── executor
-    │   ├── command         # 写操作执行器
-    │   └── query           # 读操作执行器
-    ├── eventhandler        # 领域事件处理器
-    ├── processor           # 流程编排器（可选）
-    ├── command             # 写操作入参（Cmd）
-    ├── query               # 读操作入参（Qry）
-    └── vo                  # 视图对象（VO）
+    ├── {domain1}/                   # 领域 1（如 order）
+    │   ├── service/                 # 应用服务（用例入口）
+    │   ├── executor/
+    │   │   ├── command/             # 写操作执行器
+    │   │   └── query/               # 读操作执行器
+    │   ├── eventhandler/            # 领域事件处理器
+    │   ├── processor/               # 流程编排器（可选）
+    │   ├── command/                 # 写操作入参（Cmd）
+    │   ├── query/                   # 读操作入参（Qry）
+    │   └── vo/                      # 视图对象（VO）
+    └── {domain2}/                   # 领域 2（如 inventory）
+        ├── service/
+        ├── executor/
+        │   ├── command/
+        │   └── query/
+        ├── eventhandler/
+        ├── command/
+        ├── query/
+        └── vo/
 ```
+
+> 按领域聚合划分目录，Cmd / Qry / VO 跟随所属领域，避免所有入参对象混在一起。
 
 ## 对象类型命名规约
 
@@ -167,16 +181,17 @@ domain entity          app service          infra publisher         adapter list
 
 ## Mandatory 规则
 
-1. Application Service 命名必须以 `Service` 结尾
-2. Command Executor 命名必须以 `Cmd` 结尾，Query Executor 命名必须以 `Qry` 结尾
-3. App 层**禁止**包含业务规则，业务规则必须在 domain 层
-4. 事务注解 `@Transactional` 只能出现在 Application Service 或 EventHandler（分布式场景）上；进程内事件使用 `@EventListener`，与发布者同一事务，**禁止**额外加 `@Transactional`
-5. Cmd / Qry 不得互相调用
-6. App 层**禁止**直接依赖 infrastructure 模块的具体实现类
-7. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
-8. 领域事件的处理逻辑**必须**放在 `app.eventhandler` 包中，**禁止**在 adapter listener 或 domain service 中直接处理事件触发的后续操作
-9. EventHandler 命名必须以 `EventHandler` 结尾，按领域聚合组织，一个 EventHandler 处理该领域下的所有事件，**禁止**一个事件一个 Handler
-10. 进程内事件**必须**使用 `@EventListener`，分布式事件**必须**由 adapter listener 调用 EventHandler，**禁止**混用
+1. App 层**必须**按领域聚合组织目录，每个领域一个独立子包，与 domain 层领域子包一一对应，**禁止**按技术职责平铺
+2. Application Service 命名必须以 `Service` 结尾
+3. Command Executor 命名必须以 `Cmd` 结尾，Query Executor 命名必须以 `Qry` 结尾
+4. App 层**禁止**包含业务规则，业务规则必须在 domain 层
+5. 事务注解 `@Transactional` 只能出现在 Application Service 或 EventHandler（分布式场景）上；进程内事件使用 `@EventListener`，与发布者同一事务，**禁止**额外加 `@Transactional`
+6. Cmd / Qry 不得互相调用
+7. App 层**禁止**直接依赖 infrastructure 模块的具体实现类
+8. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
+9. 领域事件的处理逻辑**必须**放在 `app.eventhandler` 包中，**禁止**在 adapter listener 或 domain service 中直接处理事件触发的后续操作
+10. EventHandler 命名必须以 `EventHandler` 结尾，按领域聚合组织，一个 EventHandler 处理该领域下的所有事件，**禁止**一个事件一个 Handler
+11. 进程内事件**必须**使用 `@EventListener`，分布式事件**必须**由 adapter listener 调用 EventHandler，**禁止**混用
 
 ## Recommended 规则
 
