@@ -75,6 +75,7 @@ public class Order extends AggregateRoot {
 ### 职责边界
 
 - 跨聚合业务逻辑、协调多个聚合根、调用 Gateway 获取外部数据
+- 封装实体的创建和初始化逻辑（工厂方法），App 层必须通过领域服务创建实体，**禁止**在 App 层直接 `new` 实体
 - **禁止**包含用例编排逻辑（属于 app 层）
 
 ### 代码示例
@@ -153,6 +154,8 @@ registerEvent()         save()                  publish()
 4. Gateway 接口方法命名必须使用领域语言，禁止 CRUD 风格命名
 5. 值对象（`V` 后缀）必须不可变（无 setter，所有字段 final）
 6. 领域事件命名必须使用过去时态
+7. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
+8. App 层**必须**通过领域服务的工厂方法创建实体，**禁止**在 App 层直接 `new` 领域实体
 
 ## Recommended 规则
 

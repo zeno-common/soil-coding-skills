@@ -77,6 +77,7 @@ App 模块定义 Cmd / Qry / VO 三种对象类型，供 adapter 层使用。详
 4. 事务注解 `@Transactional` 只能出现在 Application Service 上
 5. Cmd / Qry 不得互相调用
 6. App 层**禁止**直接依赖 infrastructure 模块的具体实现类
+7. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
 
 ## Recommended 规则
 
