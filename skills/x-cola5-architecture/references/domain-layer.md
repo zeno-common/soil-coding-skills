@@ -36,7 +36,7 @@ entity
 
 - 封装业务规则和业务逻辑，聚合根保护内部一致性
 - 值对象不可变（无 setter，所有字段 final）
-- **禁止**依赖 Spring 框架注解 / 任何基础设施（数据库、缓存、MQ）
+- 允许使用 Spring 通用编程能力（依赖注入 `@Service` / `@Component` / `@Autowired` 等），**禁止**使用基础设施能力（`@Repository` / `@Transactional` / `@Cacheable` / `@Scheduled` / 数据库 / 缓存 / MQ 等）
 
 ### 代码示例
 
@@ -149,13 +149,12 @@ registerEvent()         save()                  publish()
 ## Mandatory 规则
 
 1. Domain 模块**禁止**依赖 app、adapter、infrastructure 模块
-2. Domain 模块**禁止**依赖 Spring 框架（`@Service`、`@Component` 等）
-3. 聚合根必须保护内部一致性，外部不能直接修改内部状态
-4. Gateway 接口方法命名必须使用领域语言，禁止 CRUD 风格命名
-5. 值对象（`V` 后缀）必须不可变（无 setter，所有字段 final）
-6. 领域事件命名必须使用过去时态
-7. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
-8. App 层**必须**通过领域服务的工厂方法创建实体，**禁止**在 App 层直接 `new` 领域实体
+2. 聚合根必须保护内部一致性，外部不能直接修改内部状态
+3. Gateway 接口方法命名必须使用领域语言，禁止 CRUD 风格命名
+4. 值对象（`V` 后缀）必须不可变（无 setter，所有字段 final）
+5. 领域事件命名必须使用过去时态
+6. 当领域服务（`XxxDomainService`）已存在时，App 层**必须**注入并使用它，**禁止**在 App 层重新实现相同逻辑
+7. App 层**必须**通过领域服务的工厂方法创建实体，**禁止**在 App 层直接 `new` 领域实体
 
 ## Recommended 规则
 
