@@ -20,6 +20,10 @@ docs/cola5-endpoints/
 3. **No monolithic files** — MUST NOT combine multiple classes into one file
 4. **Shared usage** — service/usage.md contains Maven Dependency and Consumer integration guide shared by all service API docs
 
+---
+
+# Web API Output
+
 ## Web API File Format
 
 ```markdown
@@ -45,14 +49,26 @@ For endpoints with params, append inline details:
 **Response Fields**: id(Long), status(String)
 ```
 
+## Web API Endpoint Table Columns
+
+| Column | Content | Example |
+|--------|---------|---------|
+| Method | HTTP verb uppercase | POST, GET, PUT, DELETE |
+| Path | Full path with base prefix | /v1/orders/{id} |
+| Desc | Javadoc first line | 创建订单 |
+| Status | Numeric code only | 201, 200, 204 |
+| Request | Cmd/Qry class or param list | OrderCreateCmd |
+| Response | VO class or type | OrderVO, void, PagedResult<T> |
+
+---
+
+# Service API Output
+
 ## Service usage.md Format
 
 > `service-name` value comes from the provider's `spring.application.name` in `application.yml`.
 
-```markdown
-# Service API Usage
-
-## Maven Dependency
+### Maven Dependency
 
 ```xml
 <dependency>
@@ -62,11 +78,11 @@ For endpoints with params, append inline details:
 </dependency>
 ```
 
-## Consumer Integration
+### Consumer Integration
 
-### HTTP (Feign)
+#### HTTP (Feign)
 
-1. Add `@EnableFeignClients(basePackages = "{package}.client.api")` to Spring Boot application class
+1. Add `@EnableFeignClients(basePackages = "{package}.client.api")` to configuration class
 2. Create Feign client interface:
 
 ```java
@@ -82,7 +98,7 @@ public interface {Resource}FeignClient extends {Resource}Api {}
 > `name` is always required (used as bean name and log identifier). `url` is only needed when NOT using service discovery.
 > `{Resource}Api` already defines `@RequestMapping` + HTTP method annotations. Feign client inherits them automatically. MUST NOT redeclare path annotations.
 
-### RPC (Dubbo)
+#### RPC (Dubbo)
 
 1. Add Dubbo dependency and configure registry
 2. Inject service reference:
@@ -90,7 +106,6 @@ public interface {Resource}FeignClient extends {Resource}Api {}
 ```java
 @DubboReference(interfaceClass = {Resource}Api.class)
 private {Resource}Api {resource}Api;
-```
 ```
 
 ## Service API File Format
@@ -137,16 +152,9 @@ Unified method-level table for both HTTP and RPC:
 | id | Long | | | 账户ID |
 ```
 
-## Web API Endpoint Table Columns
+---
 
-| Column | Content | Example |
-|--------|---------|---------|
-| Method | HTTP verb uppercase | POST, GET, PUT, DELETE |
-| Path | Full path with base prefix | /v1/orders/{id}, /api/v1/orders |
-| Description | Javadoc first line | 创建订单 |
-| Status | Numeric code only | 201, 200, 204 |
-| Request | Cmd/Qry/DTO class or param list | OrderCreateCmd |
-| Response | VO/DTO class or type | OrderVO, void, PagedResult<T> |
+# Shared Format Rules
 
 ## Field Table Format
 
