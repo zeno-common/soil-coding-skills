@@ -1,0 +1,1 @@
+npx skills add obra/superpowers --agent trae-cn --all
