@@ -3,9 +3,7 @@ name: "x-cola5-architecture"
 description: "Enforces COLA 5 directory and layer conventions for Java projects. Invoke when creating Java project structure, adding classes, deciding which layer a class belongs to, or reviewing architecture compliance."
 ---
 
-# COLA 5 Architecture Conventions
-
-Alibaba COLA 5 clean architecture conventions for Java projects.
+# COLA 5 Architecture
 
 | Section | Reference | When to Read |
 |---------|-----------|-------------|
@@ -17,29 +15,21 @@ Alibaba COLA 5 clean architecture conventions for Java projects.
 | Infrastructure Layer | `references/infrastructure-layer.md` | GatewayImpl / Mapper / Client |
 | Lombok Annotations | `references/lombok-usage.md` | Choosing Lombok annotations |
 
-## Core Dependency Rule
+## Dependency Rule
 
 ```
 adapter → app → domain ← infrastructure
+adapter → client
 ```
 
-- **adapter** depends on **app** + **client**
-- **app** depends on **domain**
-- **infrastructure** depends on **domain** (implements gateway interfaces)
-- **domain** / **client** depend on NOTHING
-- **adapter** NEVER depends on **infrastructure**
+- domain / client depend on NOTHING
+- adapter NEVER depends on infrastructure
 
-## Quick Reference
+## Lombok Quick Pick
 
-### Adding New Class
-1. Identify responsibility → read corresponding layer reference
-2. Read `object-isolation.md` for correct object type
-3. Place in correct package, follow naming rules
-
-### Lombok Quick Pick
 | Object Type | Annotations |
 |------------|-------------|
-| Entity | `@Getter` only (no @Data/@Setter/@Builder) |
+| Entity | `@Getter` only |
 | ValueObject / Event | `@Getter @EqualsAndHashCode`, fields final |
 | Cmd / Qry / VO | `@Data @Builder` |
 | DTO / DO | `@Data @Builder @NoArgsConstructor @AllArgsConstructor` |

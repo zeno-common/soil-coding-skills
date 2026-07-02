@@ -1,85 +1,153 @@
 # Client Module
 
-Client 模块是服务间调用的 API 契约模块，存放接口定义和 DTO，供消费方依赖引用。**独立于四层之外，不依赖任何业务模块。**
+服务间调用 API 契约模块。**独立于四层之外，不依赖任何业务模块。**
 
-## 目录结构
+## Structure
 
 ```
-client/src/main/java/com/{company}/{project}/client
-├── api     # 服务间调用接口定义
+client/src/main/java/{basePackage}/client
+├── api     # 接口定义（含 HTTP 路径注解）
 └── dto     # 数据传输对象
 ```
 
-## 命名规约
+## Naming
 
-| 类别 | 命名格式 | 示例 | 说明 |
-|------|---------|------|------|
-| 服务接口 | `{Resource}Api` | `OrderApi` | client 模块定义，供消费方依赖 |
-| 写入参 | `{Resource}{Action}DTO` | `OrderCreateDTO` | — |
-| 读入参 | `{Resource}QueryDTO` | `OrderQueryDTO` | — |
-| 响应 | `{Resource}DTO` | `OrderDTO` | — |
+| Type | Pattern | Example |
+|------|---------|---------|
+| Api interface | `{Resource}Api` | `OrderApi` |
+| Write input | `{Resource}{Action}DTO` | `OrderCreateDTO` |
+| Query input | `{Resource}QueryDTO` | `OrderQueryDTO` |
+| Response | `{Resource}DTO` | `OrderDTO` |
 
-> 接口与实现命名对照：client 定义 `{Resource}Api`（接口）→ adapter 实现 `{Resource}Http`（HTTP）/ `{Resource}Rpc`（RPC）。**禁止**实现类与接口同名。
+> client `{Resource}Api` → adapter `{Resource}Http`(HTTP) / `{Resource}Rpc`(RPC). Implementation class MUST NOT share name with interface.
 
-## 代码示例
+## HTTP Path Pre-definition
+
+Api 接口 MUST 预定义完整 HTTP 路径注解，adapter 实现类和 Feign 消费方直接继承。
+
+### Annotations
+
+| Level | Required | Pattern |
+|-------|----------|---------|
+| Class | `@RequestMapping("/api/v1/{resource}")` | `@RequestMapping("/api/v1/orders")` |
+| Method - simple query | `@GetMapping("/{id}")` or `@GetMapping` | `@GetMapping("/{orderId}")` |
+| Method - complex query | `@PostMapping("/query")` | `@PostMapping("/query")` |
+| Method - create | `@PostMapping` | `@PostMapping` |
+| Method - update | `@PutMapping("/{id}")` | `@PutMapping("/{orderId}")` |
+| Method - partial update | `@PatchMapping("/{id}/{action}")` | `@PatchMapping("/{orderId}/status")` |
+| Method - delete | `@DeleteMapping("/{id}")` | `@DeleteMapping("/{orderId}")` |
+| Param - path | `@PathVariable("name")` | `@PathVariable("orderId") Long orderId` |
+| Param - query | `@RequestParam("name")` | `@RequestParam("orderNo") String orderNo` |
+| Param - body | `@RequestBody` | `@RequestBody OrderCreateDTO dto` |
+| Status - create | `@ResponseStatus(HttpStatus.CREATED)` | on create method |
+| Status - no content | `@ResponseStatus(HttpStatus.NO_CONTENT)` | on update/delete returning void |
+
+### Query Convention
+
+| Query Type | Method | Path | Param | Use Case |
+|-----------|--------|------|-------|----------|
+| Simple | GET | `/{id}` or `?key=value` | `@PathVariable` / `@RequestParam` | 单 ID、单键查询 |
+| Complex | POST | `/query` | `@RequestBody` | 多条件筛选、分页、排序 |
+
+> MUST NOT use `@SpringQueryMap` — requires `spring-cloud-starter-openfeign` dependency, inconsistent behavior.
+
+## Code Example
 
 ```java
+@RequestMapping("/api/v1/orders")
 public interface OrderApi {
-    OrderDTO getOrder(Long orderId);
-    Long createOrder(OrderCreateDTO dto);
-    PagedResult<OrderDTO> listOrders(OrderQueryDTO qry);
+    @GetMapping("/{orderId}")
+    OrderDTO getOrder(@PathVariable("orderId") Long orderId);
+
+    @GetMapping
+    OrderDTO getByOrderNo(@RequestParam("orderNo") String orderNo);
+
+    @PostMapping("/query")
+    PagedResult<OrderDTO> listOrders(@RequestBody OrderQueryDTO qry);
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    Long createOrder(@RequestBody OrderCreateDTO dto);
+
+    @PutMapping("/{orderId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void updateOrder(@PathVariable("orderId") Long orderId, @RequestBody OrderUpdateDTO dto);
+
+    @DeleteMapping("/{orderId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteOrder(@PathVariable("orderId") Long orderId);
 }
+```
 
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
-public class OrderDTO {
-    private Long orderId;
-    private String orderNo;
-    private BigDecimal totalAmount;
+## Adapter Implementation
+
+```java
+@RestController @RequiredArgsConstructor
+public class OrderHttp implements OrderApi {
+    private final OrderApplicationService orderService;
+    @Override public OrderDTO getOrder(Long orderId) { return orderService.findById(orderId); }
+    @Override public PagedResult<OrderDTO> listOrders(OrderQueryDTO qry) { return orderService.listOrders(qry); }
+    @Override public Long createOrder(OrderCreateDTO dto) { return orderService.createOrder(dto); }
 }
 ```
 
-## DTO 规约
+> Implementation MUST NOT redeclare path annotations — inherited from interface.
 
-- **禁止实现 Serializable**（Dubbo3+Triple+Fastjson2 为 JSON 序列化，不检查 Serializable）
-- 字段使用包装类型（`Long` 非 `long`），避免 NPE
-- 日期字段用 `OffsetDateTime` / `LocalDate`
-- **禁止包含领域内部实现细节**
+## Feign Consumer
 
-## client ↔ adapter.api 关系
-
-```
-client/                          # 契约定义
-├── api/OrderApi.java
-└── dto/OrderDTO.java
-adapter/api/
-├── http/OrderHttp.java         # @RestController implements OrderApi
-└── rpc/OrderRpc.java           # @DubboService implements OrderApi
+```java
+@FeignClient(name = "order-service", url = "${order-service.url}")
+public interface OrderFeignClient extends OrderApi {}
 ```
 
-- client 定义契约，adapter 实现契约（HTTP/RPC 两种传输方式）
-- http 与 rpc 共享同一套 DTO，**禁止各自定义独立 DTO**
+## DTO Rules
 
-## 何时需要 client
+- MUST NOT implement Serializable / declare serialVersionUID
+- Use wrapper types (`Long` not `long`)
+- Date fields: `OffsetDateTime` / `LocalDate`
+- MUST NOT include domain implementation details
 
-| 场景 | 需要 client | 需要 adapter.api |
-|------|:-----------:|:---------------:|
-| 被其他微服务调用 | ✅ | ✅ |
-| 仅前端/移动端调用 | ❌ | ❌ |
-| 同时被前端和微服务调用 | ✅ | ✅ |
+## client ↔ adapter.api
 
-> 有 client → 有 adapter.api；无 client → 无 adapter.api
+```
+client/api/OrderApi.java        → @RequestMapping + HTTP Method + param annotations
+client/dto/OrderDTO.java        → shared DTO
+adapter/api/http/OrderHttp.java → @RestController implements OrderApi (path inherited)
+adapter/api/rpc/OrderRpc.java   → @DubboService implements OrderApi (no HTTP annotations)
+```
 
-## Mandatory 规则
+- HTTP impl inherits path annotations; RPC impl does not use HTTP annotations
+- http and rpc MUST share same DTO set from client
 
-1. Client **禁止依赖** adapter/app/domain/infrastructure
-2. DTO **禁止实现 Serializable**，不声明 serialVersionUID
-3. http 与 rpc **禁止各自定义独立 DTO**，**必须共享 client 同一套 DTO
-4. Client **禁止包含任何业务逻辑或转换逻辑**
-5. Api 方法命名**必须使用业务语义**，**禁止 CRUD 风格**
+## When Client Exists
 
-## Recommended 规则
+| Scenario | client | adapter.api |
+|----------|:------:|:-----------:|
+| Called by other services | ✅ | ✅ |
+| Frontend/mobile only | ❌ | ❌ |
+| Both frontend and services | ✅ | ✅ |
 
-1. Client 仅含 api 和 dto 两个包
-2. pom.xml 仅依赖通用工具包，不依赖 Spring
-3. 版本化：Dubbo 用 `version` 属性，HTTP 用 URI `/api/v1/`
-4. 跨语言调用用 Triple REST 模式，DTO 仍为 POJO
+## Dependency
+
+```xml
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-web</artifactId>
+</dependency>
+```
+
+Provides `@RequestMapping`, `@GetMapping`, `@PathVariable`, `@RequestBody` etc. No `spring-boot-starter-web`.
+
+## Mandatory
+
+1. Client MUST NOT depend on adapter/app/domain/infrastructure
+2. DTO MUST NOT implement Serializable
+3. http and rpc MUST share client DTO — MUST NOT define independent DTOs
+4. Client MUST NOT contain business logic or conversion logic
+5. Api method naming MUST use business semantics — MUST NOT use CRUD style
+6. Api MUST predefine `@RequestMapping` (class) + HTTP Method annotations (method)
+7. Api params MUST declare `@PathVariable` / `@RequestParam` / `@RequestBody`
+8. Write operations MUST declare `@ResponseStatus` (CREATED / NO_CONTENT)
+9. Adapter impl MUST NOT redeclare interface path annotations
+10. Complex query MUST use `@PostMapping("/query")` + `@RequestBody` — MUST NOT use `@SpringQueryMap`
+11. Simple query uses `@GetMapping` + `@PathVariable` / `@RequestParam`

@@ -1,37 +1,36 @@
 # Infrastructure Layer
 
-基础设施层目录规约。Infrastructure 实现领域层定义的 Gateway 接口，对接外部系统。**按领域聚合组织目录。**
+实现 domain Gateway 接口，对接外部系统。**按领域聚合组织目录。**
 
-## 目录结构
+## Structure
 
 ```
-infrastructure/src/main/java/com/{company}/{project}/infrastructure
-├── {domain1}/                    # 领域 1（如 order）
-│   ├── gateway/impl/             # Gateway 接口实现
-│   ├── mapper/                   # MyBatis Mapper
-│   └── dataobject/               # DO（数据库映射对象）
-├── {domain2}/                    # 领域 2
-└── common/                       # 跨领域共享
-    ├── client/                   # 外部服务客户端
-    ├── event/                    # 事件发布实现
-    ├── config/                   # 基础设施配置
-    └── util/                     # 通用工具
+infrastructure/src/main/java/{basePackage}/infrastructure
+├── {domain1}/
+│   ├── gateway/impl/         # Gateway 实现
+│   ├── mapper/               # MyBatis Mapper
+│   └── dataobject/           # DO
+├── {domain2}/
+└── common/
+    ├── client/               # 外部服务客户端
+    ├── event/                # 事件发布实现
+    ├── config/               # 基础设施配置
+    └── util/                 # 通用工具
 ```
 
-## 各包命名与职责
+## Naming & Responsibilities
 
-| 包 | 命名格式 | 示例 | 职责 |
-|----|---------|------|------|
-| gateway/impl | `{Concept}GatewayImpl` | `OrderGatewayImpl` | 实现 domain 的 Gateway 接口，Entity↔DO 转换 |
-| mapper | `{Table}Mapper` | `OrderMapper` | 数据库操作，**禁止被 domain/app 引用** |
-| dataobject | `{Table}DO` | `OrderDO` | 数据库映射，**禁止泄露到 domain/app** |
-| client | `{System}Client` | `PaymentClient` | 封装外部系统调用，转内部异常 |
-| event | `DomainEventPublisher` | — | 发送事件到 MQ，处理序列化和重试 |
-| config | — | — | 数据源/Redis/MQ 配置，**禁止含业务逻辑** |
+| Package | Pattern | Example | Responsibility |
+|---------|---------|---------|---------------|
+| gateway/impl | `{Concept}GatewayImpl` | `OrderGatewayImpl` | Implement domain Gateway, Entity↔DO conversion |
+| mapper | `{Table}Mapper` | `OrderMapper` | DB operations — MUST NOT be referenced by domain/app |
+| dataobject | `{Table}DO` | `OrderDO` | DB mapping — MUST NOT leak to domain/app |
+| client | `{System}Client` | `PaymentClient` | Wrap external calls, convert to internal exceptions |
+| event | `DomainEventPublisher` | — | Publish events to MQ, serialization and retry |
+| config | — | — | DataSource/Redis/MQ config — MUST NOT contain business logic |
 
 ```java
-@Component
-@RequiredArgsConstructor
+@Component @RequiredArgsConstructor
 public class OrderGatewayImpl implements OrderGateway {
     private final OrderMapper orderMapper;
 
@@ -46,28 +45,28 @@ public class OrderGatewayImpl implements OrderGateway {
 }
 ```
 
-## 对象转换
+## Conversion
 
-详见 `references/object-isolation.md`。
+| Direction | Location | Method |
+|-----------|----------|--------|
+| Entity ↔ DO | Converter / GatewayImpl | `toDO()` / `toEntity()` |
+| Response → Entity | Client | `toEntity(response)` |
 
-| 转换方向 | 位置 | 方法命名 |
-|---------|------|---------|
-| Entity ↔ DO | Converter / GatewayImpl 内部 | `toDO()` / `toEntity()` |
-| Response → Entity | Client 内部 | `toEntity(response)` |
+See `references/object-isolation.md` for full conversion rules.
 
-## Mandatory 规则
+## Mandatory
 
-1. **必须按领域聚合组织**，**禁止按技术职责平铺**
-2. GatewayImpl 必须以 `GatewayImpl` 结尾，必须实现 domain 的 Gateway 接口
-3. DO **禁止泄露到 domain 或 app**
-4. Mapper **禁止被 domain 或 app 直接引用**
-5. 外部数据结构**禁止泄露到 domain**，必须在 Client 或 GatewayImpl 中转换
-6. config **禁止包含业务逻辑**
+1. MUST organize by domain aggregate — MUST NOT flat-layout by technical concern
+2. GatewayImpl suffix `GatewayImpl`, must implement domain Gateway interface
+3. DO MUST NOT leak to domain or app
+4. Mapper MUST NOT be referenced by domain or app directly
+5. External data structures MUST NOT leak to domain — convert in Client or GatewayImpl
+6. config MUST NOT contain business logic
 
-## Recommended 规则
+## Recommended
 
-1. 一个 GatewayImpl 对应一个 Gateway 接口
-2. 转换逻辑抽取为 Converter 类，保持 GatewayImpl 简洁
-3. DO 字段用包装类（`Long` 非 `long`），避免 NPE
-4. Client 统一处理外部异常转为 `BizException`
-5. 用 MapStruct 简化 Entity↔DO 转换
+1. One GatewayImpl per Gateway interface
+2. Extract conversion to Converter class, keep GatewayImpl clean
+3. DO fields use wrapper types (`Long` not `long`)
+4. Client converts external exceptions to `BizException`
+5. Use MapStruct for Entity↔DO conversion

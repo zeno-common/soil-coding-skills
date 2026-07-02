@@ -1,45 +1,44 @@
 # Adapter Layer
 
-适配层目录规约。Adapter 是系统输入端，负责接收外部请求并转换为应用层调用。**按协议组织目录，不按领域划分。**
+系统输入端，接收外部请求并转换为应用层调用。**按协议组织目录，不按领域划分。**
 
-## 目录结构
+## Structure
 
 ```
-adapter/src/main/java/com/{company}/{project}/adapter
-├── controller           # Web REST 控制器（面向前端）
-├── api                  # 服务间调用接口实现（需 client 模块）
+adapter/src/main/java/{basePackage}/adapter
+├── controller           # Web REST（面向前端）
+├── api
 │   ├── http             # Feign Provider
 │   └── rpc              # Dubbo Provider
 ├── scheduler            # 定时任务
-├── listener             # MQ Consumer（分布式事件入口）
-└── config               # 适配层专用配置
+├── listener             # MQ Consumer
+└── config               # 适配层配置
 ```
 
-## controller 包
+## controller
 
-### HTTP 路径前缀
+### Path Prefix
 
-| 接口类型 | 前缀 | 示例 |
-|---------|------|------|
-| 前台接口 | `/v1/` | `/v1/orders` |
-| 后台接口 | `/admin/v1/` | `/admin/v1/orders` |
-| 服务间调用 | `/api/v1/` | `/api/v1/orders` |
+| Type | Prefix | Example |
+|------|--------|---------|
+| Frontend | `/v1/` | `/v1/orders` |
+| Admin | `/admin/v1/` | `/admin/v1/orders` |
+| Service-to-service | `/api/v1/` | `/api/v1/orders` |
 
-### 命名规约
+### Naming
 
-| 类别 | 命名格式 | 示例 | 归属 |
-|------|---------|------|------|
+| Type | Pattern | Example | Owner |
+|------|---------|---------|-------|
 | Controller | `{Resource}Controller` | `OrderController` | adapter |
-| Request DTO | `{Resource}{Action}Cmd` / `{Resource}{Action}Qry` | `OrderCreateCmd`, `OrderListQry` | app |
-| Response DTO | `{Resource}VO` | `OrderVO` | app |
+| Request | `{Resource}{Action}Cmd` / `Qry` | `OrderCreateCmd` | app |
+| Response | `{Resource}VO` | `OrderVO` | app |
 
-### 职责边界
+### Pattern
 
-参数校验（`@Valid`）→ 调用 app 层 → 转 VO 返回；成功非 200 状态码用 `@ResponseStatus` 声明，错误状态码由异常处理器统一返回。**禁止业务逻辑 / 直接调 domain 或 infrastructure**
+Validate(`@Valid`) → call app layer → return VO. Non-200 success: `@ResponseStatus`. Errors: exception handler. **No business logic / no direct domain or infrastructure calls.**
 
 ```java
-@RestController
-@RequestMapping("/v1/orders")
+@RestController @RequestMapping("/v1/orders")
 public class OrderController {
     private final OrderService orderService;
 
@@ -60,64 +59,70 @@ public class OrderController {
 }
 ```
 
-### HTTP 状态码规约
+### Status Codes
 
-**禁止一律返回 200 + body errCode。** 成功返回数据或无体，失败用正确 HTTP 状态码。
+MUST NOT always return 200 + body errCode.
 
-| 状态码 | 场景 | 状态码 | 场景 |
-|--------|------|--------|------|
-| 200 | GET 查询 / POST 返回数据 | 400 | 参数校验失败 |
-| 201 | POST 创建资源 | 401 | 未认证 |
-| 204 | PUT/DELETE 成功无返回体 | 403 | 无权限 |
-| 303 | 状态变更后重定向 | 404 | 资源不存在 |
-| | | 500 | 服务端故障 |
+| Code | Scenario | Code | Scenario |
+|------|----------|------|----------|
+| 200 | GET / POST with data | 400 | Validation failure |
+| 201 | POST create | 401 | Unauthenticated |
+| 204 | PUT/DELETE no body | 403 | Forbidden |
+| 303 | Redirect after state change | 404 | Not found |
+| | | 500 | Server error |
 
-❌ `200 OK` + `{errCode: "NOT_FOUND"}`　✅ `404 Not Found` + `{errCode: "NOT_FOUND"}`
+## api
 
-## api 包
+服务间调用接口实现。**HTTP 路径注解由 client Api 接口预定义，实现类继承，MUST NOT 重复声明。**
 
-服务间调用接口实现，http 与 rpc 共享同一套 DTO。
+### Naming
 
-| 类别 | 命名格式 | 示例 | 说明 |
-|------|---------|------|------|
-| HTTP 实现 | `{Resource}Http` | `OrderHttp` | `@RestController`，实现 client 的 Api 接口 |
-| RPC 实现 | `{Resource}Rpc` | `OrderRpc` | `@DubboService`，实现 client 的 Api 接口 |
-| 契约接口 | `{Resource}Api` | `OrderApi` | client 模块定义，adapter 实现该接口 |
-| 入参/出参 | `{Resource}{Action}DTO` / `{Resource}DTO` | `OrderCreateDTO` / `OrderDTO` | client 模块定义 |
+| Type | Pattern | Example | Note |
+|------|---------|---------|------|
+| HTTP impl | `{Resource}Http` | `OrderHttp` | `@RestController implements {Resource}Api`, path inherited |
+| RPC impl | `{Resource}Rpc` | `OrderRpc` | `@DubboService implements {Resource}Api`, no HTTP annotations |
+| Contract | `{Resource}Api` | `OrderApi` | client module (with `@RequestMapping` + HTTP Method) |
+| Params | `{Resource}{Action}DTO` / `{Resource}DTO` | `OrderCreateDTO` | client module |
 
-| 维度 | http（Feign） | rpc（Dubbo） |
-|------|-------------|-------------|
-| 注解 | `@RestController` | `@DubboService` |
-| 消费方 | `@FeignClient` | `@DubboReference` |
-| 路径 | URI 路径 | 接口 + version 路由 |
-| 版本策略 | URI `/api/v1/` | Dubbo `version` 属性 |
+### HTTP vs RPC
 
-controller 与 api 区别：前者面向前端（Cmd/Qry/VO），后者面向微服务（DTO）；前者用户 Token 认证，后者内网信任。
+| Dimension | http (Feign) | rpc (Dubbo) |
+|-----------|-------------|-------------|
+| Annotation | `@RestController` (path inherited) | `@DubboService` |
+| Consumer | `@FeignClient extends {Resource}Api` | `@DubboReference` |
+| Path | From client Api `@RequestMapping` | Interface + version routing |
+| Versioning | URI `/api/v1/` | Dubbo `version` attribute |
 
-## scheduler 包
+> controller = frontend (Cmd/Qry/VO, Token auth); api = microservice (DTO, internal trust)
 
-命名：`{JobDescription}Job`（如 `OrderTimeoutCheckJob`）。仅触发，委托 app 层。
+### HTTP Impl Example
 
-## listener 包
+```java
+@RestController @RequiredArgsConstructor
+public class OrderHttp implements OrderApi {
+    private final OrderApplicationService orderService;
+    @Override public OrderDTO getOrder(Long orderId) { return orderService.findById(orderId); }
+    @Override public PagedResult<OrderDTO> listOrders(OrderQueryDTO qry) { return orderService.listOrders(qry); }
+    @Override public Long createOrder(OrderCreateDTO dto) { return orderService.createOrder(dto); }
+}
+```
 
-命名：`{EventDescription}Listener`（如 `PaymentResultListener`）。反序列化消息 → 调用 app 层 EventHandler。**禁止写业务逻辑。**
+## scheduler
 
-> Listener 仅用于**分布式事件**（跨服务 MQ）。**进程内事件**由 app 层 `@EventListener` 直接监听 Spring 事件总线。
+Naming: `{JobDescription}Job` (e.g., `OrderTimeoutCheckJob`). Trigger only, delegate to app layer.
 
-## Mandatory 规则
+## listener
 
-1. Adapter **禁止按领域划分**，必须按协议组织（controller/api/listener/scheduler）
-2. Cmd/Qry/VO 定义在 app 模块，DTO 定义在 client 模块，禁止在 adapter 中重新定义
-3. Controller/Http/Rpc **禁止编写业务逻辑**，仅做校验和转发
-4. Adapter **禁止直接依赖 domain 或 infrastructure**
-5. Controller **必须遵循 restful-convention**；**禁止一律返回 200**
-6. http 与 rpc **禁止各自定义独立 DTO**，必须共享 client 中的同一套 DTO
-7. Listener **禁止直接调 domain service 或 infrastructure**，必须通过 app 层 EventHandler
+Naming: `{EventDescription}Listener` (e.g., `PaymentResultListener`). Deserialize → call app EventHandler. **No business logic.**
 
-## Recommended 规则
+> Distributed events only (cross-service MQ). In-process events: app layer `@EventListener` on Spring event bus.
 
-1. 一个 Controller 对应一个领域资源
-2. 列表查询使用 `PagedResult<T>` 封装分页
-3. DTO↔领域对象转换放 Adapter 层
-4. Scheduler/Listener 异常捕获后记日志，不吞异常
-5. `{Resource}Api` 接口和 DTO 放 client 模块，adapter.api 实现该接口
+## Mandatory
+
+1. Adapter MUST organize by protocol (controller/api/listener/scheduler), NOT by domain
+2. Cmd/Qry/VO in app module, DTO in client module — MUST NOT redefine in adapter
+3. Controller/Http/Rpc MUST NOT contain business logic — validate and forward only
+4. Adapter MUST NOT depend on domain or infrastructure directly
+5. Controller MUST follow RESTful conventions; MUST NOT always return 200
+6. http and rpc MUST share client DTO — MUST NOT define independent DTOs
+7. Listener MUST NOT call domain service or infrastructure directly — must go through app EventHandler
