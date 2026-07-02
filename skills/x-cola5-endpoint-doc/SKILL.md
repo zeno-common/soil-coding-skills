@@ -1,4 +1,4 @@
-﻿---
+---
 name: x-cola5-endpoint-doc
 description: Generates http or rpc endpoints documentation from COLA 5 adapter layer. Invoke when user asks to generate API docs, interface documentation, or list all endpoints from COLA5 project.
 ---
@@ -46,8 +46,22 @@ Follow the extraction rules to parse each adapter.api HTTP/RPC implementation cl
 - RPC service info: `@DubboService` in `adapter/api/rpc/`, extract service interface, version, methods
 - DTO info: field names, types, validation annotations, javadoc (from `client/dto/`)
 - Client Api interface: used as reference for method signatures and javadoc (from `client/api/`)
+- Transport type: infer from directory — `adapter/api/http/` → HTTP (Feign), `adapter/api/rpc/` → RPC (Dubbo)
 
-### Step 4: Read `references/doc-output-format.md`
+### Step 4: Extract Consumer Usage information (for service API docs)
+
+Extract only what Consumer services need to integrate:
+
+1. **Maven coordinates** — read `client/pom.xml` to extract `groupId`, `artifactId`, `version`
+2. **Service name** — read `spring.application.name` from the provider's `application.yml` (used as `@FeignClient(name = ...)` value)
+3. **Interface source** — read `{Resource}Api.java` from `client/api/` to extract the full interface source code (annotations, method signatures, javadoc)
+4. **Consumer integration** — based on transport type (determined in Step 3):
+   - HTTP (Feign): consumer creates `@FeignClient` interface extends `{Resource}Api`, plus `@EnableFeignClients(basePackages = "{package}.client.api")`. `name` is always required; `url` is only needed when NOT using service discovery (Nacos/Eureka).
+   - RPC (Dubbo): consumer uses `@DubboReference(interfaceClass = {Resource}Api.class)` to inject
+
+> Provider implementation details (class name, package) are Provider-side internal info, NOT Consumer usage info. Do NOT include in documentation.
+
+### Step 5: Read `references/doc-output-format.md`
 
 Format the extracted information into the standard documentation output.
 
@@ -55,21 +69,26 @@ Format the extracted information into the standard documentation output.
 
 **File splitting rules** — one file per Controller/Api class, organized by layer:
 
-`
+```
 docs/cola5-endpoints/
   web/
     {ClassName}.md          — one file per @RestController in adapter/controller/
   service/
-    {ClassName}.md          — one file per @RestController/@DubboService in adapter/api/
-`
+    usage.md                — shared Maven Dependency + Consumer integration guide
+    {Resource}Api.md        — one file per {Resource}Api interface in client/api/
+  coverage.md               — cross-reference between web and service layers
+```
+
+> Service API docs are named by the **client interface** (`{Resource}Api.md`), not by the provider implementation class. Consumer programs against the interface, not the implementation.
 
 Examples:
 - `web/AuthController.md` — AuthController (/v1/auth)
 - `web/AccountController.md` — AccountController (/v1/accounts)
 - `web/AccountAdminController.md` — AccountAdminController (/admin/v1/accounts)
-- `service/AccountHttp.md` — AccountHttp (/api/v1/accounts)
+- `service/usage.md` — shared Maven Dependency + Consumer integration guide
+- `service/AccountApi.md` — AccountApi (/api/v1/accounts)
 
-### Step 5: Cross-Reference
+### Step 6: Cross-Reference
 
 Generate a `docs/cola5-endpoints/coverage.md` file that maps operations across web and service layers:
 - Controller (Cmd/Qry/VO) serves frontend; adapter.api (DTO) serves microservices
@@ -95,13 +114,11 @@ Generate a `docs/cola5-endpoints/coverage.md` file that maps operations across w
 6. **Must** differentiate path prefix: `/v1/` (frontend) vs `/api/v1/` (service-to-service) vs `/admin/v1/` (admin)
 7. **Must** follow HTTP method semantics: GET=read, POST=create, PUT=full update, PATCH=partial update, DELETE=remove
 8. **Must** use correct HTTP status codes: 201 for create, 204 for no-content operations — MUST NOT always return 200
-9. **Must** follow pagination convention: ``, ``, ``, `` query parameters, returns `PagedResult<T>`
+9. **Must** follow pagination convention: `$page`, `$pageSize`, `$orderby`, `$keywords` query parameters, returns `PagedResult<T>`
 10. **Must** generate one documentation file per Controller/Api class — MUST NOT dump all endpoints into a single monolithic file. See file splitting rules above.
 11. **Must** separate web and service docs into `web/` and `service/` subdirectories.
-12. **Must** include Usage section in every service API doc file, containing:
-    - **Maven Dependency**: client module groupId, artifactId, version
-    - **Interface**: `{Resource}Api` interface full source with method signatures and javadoc
-    - **Implementation**: Provider class name, transport type (HTTP/RPC), and consumer integration guide (Feign `@EnableFeignClients` or Dubbo `@DubboReference`)
+12. **Must** generate `service/usage.md` containing shared Maven Dependency and Consumer integration guide. Each service API doc file links to `usage.md` for Maven Dependency, and includes its own Interface source, Endpoints, and Object Definitions.
+13. **Must** name service API doc files by the client interface (`{Resource}Api.md`), NOT by the provider implementation class. Provider implementation details MUST NOT appear in documentation — they are internal to the provider service.
 
 ## Recommended Rules
 
