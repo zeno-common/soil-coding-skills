@@ -5,14 +5,13 @@
 ```
 docs/cola5-endpoints/
   web/
-    {ControllerClassName}.md    — one file per @RestController in adapter/controller/
+    {ClassName}.md          — one file per @RestController in adapter/controller/
   service/
-    usage.md                    — shared Maven Dependency + Consumer integration guide
-    {Resource}Api.md            — one file per {Resource}Api interface in client/api/
-  coverage.md                   — cross-reference between web and service layers
+    usage.md                — shared Maven Dependency + Consumer integration guide
+    {Resource}Api.md        — one file per {Resource}Api interface in client/api/
 ```
 
-> Service API docs are named by the **client interface** (`{Resource}Api`), not by the provider implementation (`{Resource}Http`/`{Resource}Rpc`).
+> Service API docs are named by the **client interface** (`{Resource}Api.md`), not by the provider implementation class. Consumer programs against the interface, not the implementation.
 
 ### File Splitting Rules
 
@@ -20,7 +19,6 @@ docs/cola5-endpoints/
 2. **Layer separation** — web controllers go in web/, service APIs go in service/
 3. **No monolithic files** — MUST NOT combine multiple classes into one file
 4. **Shared usage** — service/usage.md contains Maven Dependency and Consumer integration guide shared by all service API docs
-5. **Coverage file** — coverage.md at root level provides cross-reference
 
 ## Web API File Format
 
@@ -107,7 +105,6 @@ Each service API file includes: file header, **Endpoints**, **Object Definitions
 ```markdown
 # {Resource}Api
 
-Audience: service
 Transport: {HTTP (Feign) | RPC (Dubbo)}
 
 > Maven Dependency and Consumer integration: see [usage.md](./usage.md)
@@ -115,17 +112,19 @@ Transport: {HTTP (Feign) | RPC (Dubbo)}
 
 ### Section 1: Endpoints
 
-HTTP endpoints use the same table format as web API. RPC endpoints use:
+Unified method-level table for both HTTP and RPC:
 
 ```markdown
 ## Endpoints
 
 | Method | Desc | Params | Return |
 |--------|------|--------|--------|
+| getAccountById | 根据ID查询账户信息 | id: Long | AccountDTO |
 | createOrder | 创建订单 | dto: OrderCreateDTO | OrderDTO |
 ```
 
-> RPC Method naming MUST use business semantics. MUST NOT use CRUD naming.
+> Method naming MUST use business semantics, MUST NOT use CRUD naming.
+> Consumer calls Java methods on the `{Resource}Api` interface, not HTTP endpoints directly. Feign/Dubbo handles the transport mapping automatically.
 
 ### Section 2: Object Definitions
 
@@ -138,17 +137,7 @@ HTTP endpoints use the same table format as web API. RPC endpoints use:
 | id | Long | | | 账户ID |
 ```
 
-## Coverage File Format
-
-```markdown
-# Endpoint Coverage
-
-## {Resource}
-| Op | Web(Frontend) | Web(Admin) | Service(Api) |
-|----|--------------|-----------|--------------|
-```
-
-## Endpoint Table Columns
+## Web API Endpoint Table Columns
 
 | Column | Content | Example |
 |--------|---------|---------|
@@ -180,22 +169,34 @@ Shorthand constraints:
 
 ## Format Rules
 
-### Rule 1: One-line per endpoint
-Each endpoint = one table row. No nested blocks, no code fences for examples.
+### Rule 1: One-line per endpoint/method
+Each endpoint (web) or method (service) = one table row. No nested blocks, no code fences for examples.
 
 ### Rule 2: Compact parameter inline
-Append after main table for endpoints with params:
+Append after main table for endpoints/methods with params:
 
+Web:
 ```
-**Params**: [path] paramName(Type) [query] paramName(Type, y/n, default) [body] ClassName
+**POST /v1/orders**
 **Body Fields**: username(String, y, @Size4-64), password(String, y)
 **Response Fields**: id(Long), status(String), createdAt(OffsetDateTime)
+
+**GET /v1/orders**
+**Params**: [path] id(Long) [query] keyword(String, n) $page(Integer, n, default=1)
+**Response Fields**: id(Long), status(String)
 ```
 
-Examples:
-- [path] orderId(Long)
-- [query] $page(Integer, n, default=1) $pageSize(Integer, n, default=20)
-- [body] OrderCreateCmd
+Service:
+```
+**getAccountById**
+**Params**: id(Long)
+**Return Fields**: id(Long), username(String), status(String)
+
+**createOrder**
+**Params**: dto: OrderCreateDTO
+**Body Fields**: username(String, y, @Size4-64), password(String, y)
+**Return Fields**: id(Long), status(String), createdAt(OffsetDateTime)
+```
 
 ### Rule 3: No decorative elements
 - Remove: "Status Code:", "Request Body:", "Response:" section headers
@@ -213,6 +214,18 @@ Examples:
 - y = required (has @NotNull/@NotBlank/@NotEmpty)
 - n = optional
 - default value in parens: (default=20)
+
+## Output Mandatory Rules
+
+1. **Must** follow the output format defined in this file
+2. **Must** generate one documentation file per Controller/Api class — MUST NOT dump all endpoints into a single monolithic file
+3. **Must** separate web and service docs into `web/` and `service/` subdirectories
+4. **Must** generate `service/usage.md` containing shared Maven Dependency and Consumer integration guide. Each service API doc file links to `usage.md` and includes only Endpoints and Object Definitions
+5. **Must** name service API doc files by the client interface (`{Resource}Api.md`), NOT by the provider implementation class. Provider implementation details MUST NOT appear in documentation — they are internal to the provider service
+
+## Output Recommended Rules
+
+1. Include field details when Cmd/VO/DTO fields are available
 
 ## Language Rule
 

@@ -20,6 +20,14 @@ Rules for extracting endpoint documentation from COLA 5 adapter layer source cod
 | Admin API | `/admin/v1/` | Backend Admin |
 | Service-to-Service | `/api/v1/` | Other microservices |
 
+## Architecture Conventions
+
+1. **Controller** serves frontend/mobile via HTTP, uses CQRS style (Cmd/Qry/VO)
+2. **adapter.api** (HTTP/RPC implementations) serves other microservices, uses unified DTO style
+3. Controller and adapter.api share the same app layer entry points
+4. Api method naming MUST use business semantics, MUST NOT use CRUD naming
+5. DTO rules: MUST NOT implement Serializable, wrapper types only, OffsetDateTime/LocalDate for dates
+
 ## Web Controller Extraction
 
 ### Class-Level
@@ -49,20 +57,16 @@ Rules for extracting endpoint documentation from COLA 5 adapter layer source cod
 | Field | Source | Example |
 |-------|--------|---------|
 | Resource Name | Class javadoc or derive from class name | "Account" from AccountHttp |
-| Base Path | `@RequestMapping` value | "/api/v1/accounts" |
 | Transport | Always "HTTP (Feign)" | HTTP (Feign) |
 
-### Endpoint-Level
+### Method-Level
 
 | Field | Source | Example |
 |-------|--------|---------|
-| HTTP Method | Annotation type | GET, POST, PUT, DELETE |
-| Path | Annotation value + base path | "/api/v1/accounts/{id}" |
+| Method Name | Java method name | "getAccountById" |
 | Description | Method javadoc, fallback to client Api interface javadoc | "根据ID查询账户信息" |
-| Parameters | Method params + annotations | Same rules as web, but types are DTO |
-| Request Body | `@RequestBody` param type (DTO) | OrderCreateDTO |
-| Response Type | Method return type (DTO) | OrderDTO, void |
-| Status Code | `@ResponseStatus` annotation | 201, 204 (default 200) |
+| Parameters | Method params with DTO types | id: Long, dto: OrderCreateDTO |
+| Return Type | Method return type | OrderDTO, void, PagedResult<OrderDTO> |
 
 ## Service RPC Extraction (adapter/api/rpc/)
 
@@ -85,6 +89,19 @@ Rules for extracting endpoint documentation from COLA 5 adapter layer source cod
 | Return Type | Method return type | OrderDTO |
 
 > Method naming MUST use business semantics, MUST NOT use CRUD naming.
+
+## Consumer Integration
+
+### HTTP (Feign)
+
+1. **Maven coordinates** — read `client/pom.xml` to extract `groupId`, `artifactId`, `version`
+2. **Service name** — read `spring.application.name` from the provider's `application.yml` (used as `@FeignClient(name = ...)` value)
+3. Consumer creates `@FeignClient` interface extends `{Resource}Api`, plus `@EnableFeignClients(basePackages = "{package}.client.api")`. `name` is always required; `url` is only needed when NOT using service discovery (Nacos/Eureka).
+4. `{Resource}Api` already defines `@RequestMapping` + HTTP method annotations. Feign client inherits them automatically. MUST NOT redeclare path annotations.
+
+### RPC (Dubbo)
+
+1. Consumer uses `@DubboReference(interfaceClass = {Resource}Api.class)` to inject
 
 ## Parameter Extraction Rules
 
@@ -178,3 +195,21 @@ The `{Resource}Api` interface in `client/api/` is NOT the primary source. It ser
 3. **@DateTimeFormat parameters**: Note expected format (ISO DATE_TIME)
 4. **Qry as method param without @RequestBody**: Document Qry fields as query parameters
 5. **Admin controllers**: Identified by `/admin/v1/` prefix, audience = admin
+
+## Extraction Mandatory Rules
+
+1. **Must** read actual source code to extract documentation — never fabricate endpoint information
+2. **Must** include HTTP method, full path, and response type for every web endpoint
+3. **Must** include method name, description, parameters, and return type for every service method
+4. **Must** distinguish required vs optional parameters
+5. **Must** include field-level documentation for request/response objects
+6. **Must** differentiate path prefix: `/v1/` (frontend) vs `/api/v1/` (service-to-service) vs `/admin/v1/` (admin)
+7. **Must** follow HTTP method semantics: GET=read, POST=create, PUT=full update, PATCH=partial update, DELETE=remove
+8. **Must** use correct HTTP status codes: 201 for create, 204 for no-content operations — MUST NOT always return 200
+9. **Must** follow pagination convention: `$page`, `$pageSize`, `$orderby`, `$keywords` query parameters, returns `PagedResult<T>`
+
+## Extraction Recommended Rules
+
+1. Note authentication requirements if visible from code
+2. Highlight deprecated endpoints/methods if `@Deprecated` annotation is present
+3. Include enum values when parameter types are enums
