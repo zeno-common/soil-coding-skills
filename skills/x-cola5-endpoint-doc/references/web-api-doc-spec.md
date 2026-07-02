@@ -1,4 +1,4 @@
-﻿# Web API Documentation Extraction Spec
+# Web API Documentation Extraction Spec
 
 Rules for extracting web API documentation from COLA 5 adapter controller classes.
 
@@ -111,7 +111,7 @@ When a method has `$page`, `$pageSize`, `$sortBy`, `$order` parameters and retur
 | No `@ResponseStatus` + returns value | 200 OK |
 | No `@ResponseStatus` + returns void | 200 OK |
 
-> Controller MUST follow restful-convention. **禁止一律返回 200**。Error status codes use correct HTTP semantics (400/401/403/404/500).
+> Controller MUST follow restful-convention. MUST NOT always return 200. Error status codes use correct HTTP semantics (400/401/403/404/500).
 
 ## Special Cases
 
