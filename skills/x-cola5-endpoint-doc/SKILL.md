@@ -9,8 +9,7 @@ Based on COLA 5 architecture adapter layer, generate structured interface docume
 
 | Section | Reference File | When to Read |
 |---------|---------------|-------------|
-| Web API Doc Spec | `references/web-api-doc-spec.md` | Generating documentation for controller endpoints |
-| Service API Doc Spec | `references/service-api-doc-spec.md` | Generating documentation for adapter.api HTTP/RPC endpoints |
+| Extraction Spec | `references/extraction-spec.md` | Extracting endpoint info from source code |
 | Doc Output Format | `references/doc-output-format.md` | Formatting the final documentation output |
 
 ## When to Invoke
@@ -33,34 +32,29 @@ Based on COLA 5 architecture adapter layer, generate structured interface docume
 3. Find all DTO classes under `client/dto/` package (referenced by adapter.api)
 4. Find `{Resource}Api` interfaces under `client/api/` package (contract definition, used for method signatures)
 
-### Step 2: Read `references/web-api-doc-spec.md` (if documenting web APIs)
+### Step 2: Read `references/extraction-spec.md`
 
-Follow the extraction rules to parse each controller class and extract:
-- Controller-level info: class javadoc, base path (`@RequestMapping`)
-- Endpoint-level info: HTTP method, path, method javadoc, parameters, request body, response type, status code
+Follow the extraction rules to parse source code and extract endpoint information:
+- Web controller: class-level + endpoint-level extraction
+- Service HTTP: class-level + endpoint-level extraction (DTO types)
+- Service RPC: class-level + method-level extraction
+- Parameter extraction: @RequestParam, @PathVariable, @RequestBody
+- Object field extraction: Cmd/Qry/VO/DTO fields
+- Pagination pattern, status code determination, special cases
 
-### Step 3: Read `references/service-api-doc-spec.md` (if documenting service APIs)
-
-Follow the extraction rules to parse each adapter.api HTTP/RPC implementation class:
-- HTTP endpoint info: `@RestController` in `adapter/api/http/`, extract HTTP method, path (`/api/v1/`), parameters, response type (DTO)
-- RPC service info: `@DubboService` in `adapter/api/rpc/`, extract service interface, version, methods
-- DTO info: field names, types, validation annotations, javadoc (from `client/dto/`)
-- Client Api interface: used as reference for method signatures and javadoc (from `client/api/`)
-- Transport type: infer from directory — `adapter/api/http/` → HTTP (Feign), `adapter/api/rpc/` → RPC (Dubbo)
-
-### Step 4: Extract Consumer Usage information (for service API docs)
+### Step 3: Extract Consumer Usage information (for service API docs)
 
 Extract only what Consumer services need to integrate:
 
 1. **Maven coordinates** — read `client/pom.xml` to extract `groupId`, `artifactId`, `version`
 2. **Service name** — read `spring.application.name` from the provider's `application.yml` (used as `@FeignClient(name = ...)` value)
-3. **Consumer integration** — based on transport type (determined in Step 3):
+3. **Consumer integration** — based on transport type (determined in Step 2):
    - HTTP (Feign): consumer creates `@FeignClient` interface extends `{Resource}Api`, plus `@EnableFeignClients(basePackages = "{package}.client.api")`. `name` is always required; `url` is only needed when NOT using service discovery (Nacos/Eureka).
    - RPC (Dubbo): consumer uses `@DubboReference(interfaceClass = {Resource}Api.class)` to inject
 
 > Provider implementation details (class name, package) are Provider-side internal info, NOT Consumer usage info. Do NOT include in documentation.
 
-### Step 5: Read `references/doc-output-format.md`
+### Step 4: Read `references/doc-output-format.md`
 
 Format the extracted information into the standard documentation output.
 
@@ -87,7 +81,7 @@ Examples:
 - `service/usage.md` — shared Maven Dependency + Consumer integration guide
 - `service/AccountApi.md` — AccountApi (/api/v1/accounts)
 
-### Step 6: Cross-Reference
+### Step 5: Cross-Reference
 
 Generate a `docs/cola5-endpoints/coverage.md` file that maps operations across web and service layers:
 - Controller (Cmd/Qry/VO) serves frontend; adapter.api (DTO) serves microservices
@@ -99,7 +93,7 @@ Generate a `docs/cola5-endpoints/coverage.md` file that maps operations across w
 1. **Controller** serves frontend/mobile via HTTP, uses CQRS style (Cmd/Qry/VO)
 2. **adapter.api** (HTTP/RPC implementations) serves other microservices, uses unified DTO style
 3. Controller and adapter.api share the same app layer entry points
-4. HTTP path prefix convention: `/v1/` (frontend), `/admin/v1/` (admin), `/api/v1/` (service-to-service) — see reference files for details
+4. HTTP path prefix convention: `/v1/` (frontend), `/admin/v1/` (admin), `/api/v1/` (service-to-service) — see extraction-spec for details
 5. Api method naming MUST use business semantics, MUST NOT use CRUD naming
 6. DTO rules: MUST NOT implement Serializable, wrapper types only, OffsetDateTime/LocalDate for dates
 

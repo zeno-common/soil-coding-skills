@@ -12,7 +12,7 @@ docs/cola5-endpoints/
   coverage.md                   — cross-reference between web and service layers
 ```
 
-> Service API docs are named by the **client interface** (`{Resource}Api`), not by the provider implementation (`{Resource}Http`/`{Resource}Rpc`). Consumer programs against the interface.
+> Service API docs are named by the **client interface** (`{Resource}Api`), not by the provider implementation (`{Resource}Http`/`{Resource}Rpc`).
 
 ### File Splitting Rules
 
@@ -22,7 +22,7 @@ docs/cola5-endpoints/
 4. **Shared usage** — service/usage.md contains Maven Dependency and Consumer integration guide shared by all service API docs
 5. **Coverage file** — coverage.md at root level provides cross-reference
 
-## Web API File Structure
+## Web API File Format
 
 ```markdown
 # {ClassName}
@@ -47,9 +47,7 @@ For endpoints with params, append inline details:
 **Response Fields**: id(Long), status(String)
 ```
 
-## Service usage.md Structure
-
-Shared file for all service API docs. Contains Maven Dependency and Consumer integration guide.
+## Service usage.md Format
 
 > `service-name` value comes from the provider's `spring.application.name` in `application.yml`.
 
@@ -97,7 +95,7 @@ private {Resource}Api {resource}Api;
 ```
 ```
 
-## Service API File Structure
+## Service API File Format
 
 Each service API file includes: file header, **Endpoints**, **Object Definitions**.
 
@@ -117,7 +115,7 @@ Transport: {HTTP (Feign) | RPC (Dubbo)}
 
 ### Section 1: Endpoints
 
-HTTP endpoints use the same table format as web API (see Endpoint Table Columns). RPC endpoints use:
+HTTP endpoints use the same table format as web API. RPC endpoints use:
 
 ```markdown
 ## Endpoints
@@ -140,9 +138,7 @@ HTTP endpoints use the same table format as web API (see Endpoint Table Columns)
 | id | Long | | | 账户ID |
 ```
 
-## Coverage File Structure
-
-coverage.md maps operations across web and service layers:
+## Coverage File Format
 
 ```markdown
 # Endpoint Coverage
@@ -151,43 +147,6 @@ coverage.md maps operations across web and service layers:
 | Op | Web(Frontend) | Web(Admin) | Service(Api) |
 |----|--------------|-----------|--------------|
 ```
-
-## Format Rules
-
-### Rule 1: One-line per endpoint
-Each endpoint = one table row. No nested blocks, no code fences for examples.
-
-### Rule 2: Compact parameter tables
-For endpoints with path/query/body params, append inline after main table:
-
-```
-**Params**: [path] paramName(Type) [query] paramName(Type, y/n, default) [body] ClassName
-**Body Fields**: username(String, y, @Size4-64), password(String, y)
-**Response Fields**: id(Long), status(String), createdAt(OffsetDateTime)
-```
-
-Examples:
-- [path] orderId(Long) — single path param
-- [query] $page(Integer, n, default=1) $pageSize(Integer, n, default=20) — pagination
-- [body] OrderCreateCmd — request body class (Cmd)
-
-### Rule 3: No decorative elements
-- Remove: "Status Code:", "Request Body:", "Response:" section headers
-- Remove: Example request/response blocks
-- Remove: Empty separator lines (---)
-- Keep: Tables only, minimal bold labels
-
-### Rule 4: Type notation
-Use short type names in parentheses:
-- Basic: String, Long, Integer, Boolean, OffsetDateTime, LocalDate
-- Enum: EnumName(VALUE1,VALUE2)
-- Generic: List<T>, Map<K,V>, PagedResult<T>
-- Void: void or -
-
-### Rule 5: Required/Optional shorthand
-- y = required (has @NotNull/@NotBlank/@NotEmpty)
-- n = optional
-- default value in parens if present: (default=20)
 
 ## Endpoint Table Columns
 
@@ -200,7 +159,7 @@ Use short type names in parentheses:
 | Request | Cmd/Qry/DTO class or param list | OrderCreateCmd |
 | Response | VO/DTO class or type | OrderVO, void, PagedResult<T> |
 
-## Field Table Format (for Cmd/Qry/VO/DTO)
+## Field Table Format
 
 ```
 ### {ClassName}
@@ -218,6 +177,42 @@ Shorthand constraints:
 - @Pattern(regexp) → @Pattern
 - @Min/@Max → @Range(min,max)
 - Multiple → comma separated: @NotBlank,@Size1-200
+
+## Format Rules
+
+### Rule 1: One-line per endpoint
+Each endpoint = one table row. No nested blocks, no code fences for examples.
+
+### Rule 2: Compact parameter inline
+Append after main table for endpoints with params:
+
+```
+**Params**: [path] paramName(Type) [query] paramName(Type, y/n, default) [body] ClassName
+**Body Fields**: username(String, y, @Size4-64), password(String, y)
+**Response Fields**: id(Long), status(String), createdAt(OffsetDateTime)
+```
+
+Examples:
+- [path] orderId(Long)
+- [query] $page(Integer, n, default=1) $pageSize(Integer, n, default=20)
+- [body] OrderCreateCmd
+
+### Rule 3: No decorative elements
+- Remove: "Status Code:", "Request Body:", "Response:" section headers
+- Remove: Example request/response blocks
+- Remove: Empty separator lines (---)
+- Keep: Tables only, minimal bold labels
+
+### Rule 4: Type notation
+- Basic: String, Long, Integer, Boolean, OffsetDateTime, LocalDate
+- Enum: EnumName(VALUE1,VALUE2)
+- Generic: List<T>, Map<K,V>, PagedResult<T>
+- Void: void or -
+
+### Rule 5: Required/Optional shorthand
+- y = required (has @NotNull/@NotBlank/@NotEmpty)
+- n = optional
+- default value in parens: (default=20)
 
 ## Language Rule
 
