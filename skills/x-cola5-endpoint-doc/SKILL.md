@@ -54,8 +54,7 @@ Extract only what Consumer services need to integrate:
 
 1. **Maven coordinates** — read `client/pom.xml` to extract `groupId`, `artifactId`, `version`
 2. **Service name** — read `spring.application.name` from the provider's `application.yml` (used as `@FeignClient(name = ...)` value)
-3. **Interface source** — read `{Resource}Api.java` from `client/api/` to extract the full interface source code (annotations, method signatures, javadoc)
-4. **Consumer integration** — based on transport type (determined in Step 3):
+3. **Consumer integration** — based on transport type (determined in Step 3):
    - HTTP (Feign): consumer creates `@FeignClient` interface extends `{Resource}Api`, plus `@EnableFeignClients(basePackages = "{package}.client.api")`. `name` is always required; `url` is only needed when NOT using service discovery (Nacos/Eureka).
    - RPC (Dubbo): consumer uses `@DubboReference(interfaceClass = {Resource}Api.class)` to inject
 
@@ -117,7 +116,7 @@ Generate a `docs/cola5-endpoints/coverage.md` file that maps operations across w
 9. **Must** follow pagination convention: `$page`, `$pageSize`, `$orderby`, `$keywords` query parameters, returns `PagedResult<T>`
 10. **Must** generate one documentation file per Controller/Api class — MUST NOT dump all endpoints into a single monolithic file. See file splitting rules above.
 11. **Must** separate web and service docs into `web/` and `service/` subdirectories.
-12. **Must** generate `service/usage.md` containing shared Maven Dependency and Consumer integration guide. Each service API doc file links to `usage.md` for Maven Dependency, and includes its own Interface source, Endpoints, and Object Definitions.
+12. **Must** generate `service/usage.md` containing shared Maven Dependency and Consumer integration guide. Each service API doc file links to `usage.md` and includes only Endpoints and Object Definitions.
 13. **Must** name service API doc files by the client interface (`{Resource}Api.md`), NOT by the provider implementation class. Provider implementation details MUST NOT appear in documentation — they are internal to the provider service.
 
 ## Recommended Rules

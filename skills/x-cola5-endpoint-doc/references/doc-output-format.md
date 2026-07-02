@@ -12,17 +12,6 @@ docs/cola5-endpoints/
   coverage.md                   — cross-reference between web and service layers
 ```
 
-### File Naming Examples
-
-| Source | File Path | Note |
-|--------|-----------|------|
-| AuthController | web/AuthController.md | Controller class name |
-| AccountController | web/AccountController.md | Controller class name |
-| AccountAdminController | web/AccountAdminController.md | Controller class name |
-| (shared) | service/usage.md | Maven Dependency + Consumer integration |
-| AccountApi | service/AccountApi.md | Client interface name, NOT provider implementation |
-| OrderApi | service/OrderApi.md | Client interface name, NOT provider implementation |
-
 > Service API docs are named by the **client interface** (`{Resource}Api`), not by the provider implementation (`{Resource}Http`/`{Resource}Rpc`). Consumer programs against the interface.
 
 ### File Splitting Rules
@@ -34,8 +23,6 @@ docs/cola5-endpoints/
 5. **Coverage file** — coverage.md at root level provides cross-reference
 
 ## Web API File Structure
-
-Each web API file follows this structure:
 
 ```markdown
 # {ClassName}
@@ -56,7 +43,7 @@ For endpoints with params, append inline details:
 **Response Fields**: id(Long), status(String), createdAt(OffsetDateTime)
 
 **GET /v1/orders**
-**Params**: [query] keyword(String, n) $page(Integer, n, default=1)
+**Params**: [path] id(Long) [query] keyword(String, n) $page(Integer, n, default=1)
 **Response Fields**: id(Long), status(String)
 ```
 
@@ -112,123 +99,45 @@ private {Resource}Api {resource}Api;
 
 ## Service API File Structure
 
-Each service API file includes: file header, **Interface**, **Endpoints**, **Object Definitions**.
+Each service API file includes: file header, **Endpoints**, **Object Definitions**.
 
 > Maven Dependency and Consumer integration guide are in [usage.md](./usage.md) — MUST NOT duplicate in each API file.
 > Provider implementation details MUST NOT appear in documentation.
 
 ### File Header
 
-Consumer-facing metadata only:
-
 ```markdown
 # {Resource}Api
 
-Base Path: /api/v1/{resource}
 Audience: service
 Transport: {HTTP (Feign) | RPC (Dubbo)}
-```
-
-### Section 1: Interface
-
-The `{Resource}Api` interface full source code that consumers program against.
-
-```markdown
-## Interface
 
 > Maven Dependency and Consumer integration: see [usage.md](./usage.md)
-
-```java
-// {package}.client.api.{Resource}Api
-/**
- * {class javadoc}
- */
-@RequestMapping("/api/v1/{resource}")
-public interface {Resource}Api {
-    /**
-     * {method javadoc}
-     */
-    @GetMapping("/{id}")
-    {Resource}DTO get{Resource}(@PathVariable("id") Long id);
-}
-```
 ```
 
-### Section 2: Endpoints
+### Section 1: Endpoints
+
+HTTP endpoints use the same table format as web API (see Endpoint Table Columns). RPC endpoints use:
 
 ```markdown
 ## Endpoints
 
-| Method | Path | Desc | Status | Request | Response |
-|--------|------|------|--------|---------|----------|
-| GET | /api/v1/accounts/{id} | 根据ID查询账户信息 | 200 | - | AccountDTO |
-
-**GET /api/v1/accounts/{id}**
-**Params**: [path] id(Long)
-**Response Fields**: id(Long), username(String), status(String), createdAt(OffsetDateTime)
+| Method | Desc | Params | Return |
+|--------|------|--------|--------|
+| createOrder | 创建订单 | dto: OrderCreateDTO | OrderDTO |
 ```
 
-### Section 3: Object Definitions
+> RPC Method naming MUST use business semantics. MUST NOT use CRUD naming.
+
+### Section 2: Object Definitions
 
 ```markdown
 ## Object Definitions
 
-### AccountDTO
+### {ClassName}
 | Field | Type | Req | Constraints | Desc |
 |-------|------|-----|-------------|------|
 | id | Long | | | 账户ID |
-```
-
-## Full Service API File Example
-
-```markdown
-# AccountApi
-
-Base Path: /api/v1/accounts
-Audience: service
-Transport: HTTP (Feign)
-
-## Interface
-
-> Maven Dependency and Consumer integration: see [usage.md](./usage.md)
-
-```java
-// io.soil.usercenter.client.api.AccountApi
-/**
- * 账户服务间调用接口
- */
-@RequestMapping("/api/v1/accounts")
-public interface AccountApi {
-    /**
-     * 根据ID查询账户信息
-     *
-     * @param id 账户ID
-     * @return 账户DTO
-     */
-    @GetMapping("/{id}")
-    AccountDTO getAccountById(@PathVariable("id") Long id);
-}
-```
-
-## Endpoints
-
-| Method | Path | Desc | Status | Request | Response |
-|--------|------|------|--------|---------|----------|
-| GET | /api/v1/accounts/{id} | 根据ID查询账户信息 | 200 | - | AccountDTO |
-
-**GET /api/v1/accounts/{id}**
-**Params**: [path] id(Long)
-**Response Fields**: id(Long), username(String), status(String), createdAt(OffsetDateTime)
-
-## Object Definitions
-
-### AccountDTO
-| Field | Type | Req | Constraints | Desc |
-|-------|------|-----|-------------|------|
-| id | Long | | | 账户ID |
-| username | String | y | @Size4-64 | 用户名 |
-| status | String | | | 状态 |
-| createdAt | OffsetDateTime | | | 创建时间 |
 ```
 
 ## Coverage File Structure
@@ -238,28 +147,9 @@ coverage.md maps operations across web and service layers:
 ```markdown
 # Endpoint Coverage
 
-## Account
+## {Resource}
 | Op | Web(Frontend) | Web(Admin) | Service(Api) |
 |----|--------------|-----------|--------------|
-| Create | POST /v1/accounts | - | - |
-| Page | - | GET /admin/v1/accounts | - |
-| GetById | - | - | GET /api/v1/accounts/{id} |
-| ChangePassword | PUT /v1/accounts/{id}/password | - | - |
-| UpdateStatus | - | PATCH /admin/v1/accounts/{id}/status | - |
-| ResetPassword | - | PATCH /admin/v1/accounts/{id}/password/reset | - |
-| UpdateProfile | - | PUT /admin/v1/accounts/{id}/profile | - |
-| Remove | - | DELETE /admin/v1/accounts/{id} | - |
-
-## Auth
-| Op | Web(Frontend) | Web(Admin) | Service(Api) |
-|----|--------------|-----------|--------------|
-| Login | POST /v1/auth/login | - | - |
-| Logout | POST /v1/auth/logout | - | - |
-
-## AuditLog
-| Op | Web(Frontend) | Web(Admin) | Service(Api) |
-|----|--------------|-----------|--------------|
-| Page | - | GET /admin/v1/audit-logs | - |
 ```
 
 ## Format Rules
@@ -271,10 +161,15 @@ Each endpoint = one table row. No nested blocks, no code fences for examples.
 For endpoints with path/query/body params, append inline after main table:
 
 ```
-**Params**: [path] id(Long) [query] keyword(String, n) [body] CreateCmd
+**Params**: [path] paramName(Type) [query] paramName(Type, y/n, default) [body] ClassName
 **Body Fields**: username(String, y, @Size4-64), password(String, y)
 **Response Fields**: id(Long), status(String), createdAt(OffsetDateTime)
 ```
+
+Examples:
+- [path] orderId(Long) — single path param
+- [query] $page(Integer, n, default=1) $pageSize(Integer, n, default=20) — pagination
+- [body] OrderCreateCmd — request body class (Cmd)
 
 ### Rule 3: No decorative elements
 - Remove: "Status Code:", "Request Body:", "Response:" section headers
@@ -302,27 +197,8 @@ Use short type names in parentheses:
 | Path | Full path with base prefix | /v1/orders/{id}, /api/v1/orders |
 | Description | Javadoc first line | 创建订单 |
 | Status | Numeric code only | 201, 200, 204 |
-| Request | Cmd/Qry class or param list | OrderCreateCmd |
-| Response | VO class or type | OrderVO, void, PagedResult<T> |
-
-## Path Prefix Convention
-
-| Prefix | Audience | Source Location | Doc Directory |
-|--------|----------|-----------------|---------------|
-| /v1/ | Frontend/Mobile | adapter/controller/ | web/ |
-| /admin/v1/ | Backend Admin | adapter/controller/ | web/ |
-| /api/v1/ | Other microservices | adapter/api/http/ | service/ |
-
-## Param Inline Format
-
-```
-[path] paramName(Type) [query] paramName(Type, y/n, default) [body] ClassName
-```
-
-Examples:
-- [path] orderId(Long) — single path param
-- [query] $page(Integer, n, default=1) $pageSize(Integer, n, default=20) — pagination
-- [body] OrderCreateCmd — request body class (Cmd)
+| Request | Cmd/Qry/DTO class or param list | OrderCreateCmd |
+| Response | VO/DTO class or type | OrderVO, void, PagedResult<T> |
 
 ## Field Table Format (for Cmd/Qry/VO/DTO)
 
@@ -342,32 +218,6 @@ Shorthand constraints:
 - @Pattern(regexp) → @Pattern
 - @Min/@Max → @Range(min,max)
 - Multiple → comma separated: @NotBlank,@Size1-200
-
-## Service API Table Columns
-
-### HTTP Endpoints (adapter/api/http/)
-
-Documented the same way as web API endpoints, but under /api/v1/ prefix and using DTO types:
-
-| Column | Content | Example |
-|--------|---------|---------|
-| Method | HTTP verb uppercase | GET, POST |
-| Path | Full path with /api/v1/ prefix | /api/v1/accounts/{id} |
-| Description | Javadoc first line | 根据ID查询账户信息 |
-| Status | Numeric code only | 200, 201 |
-| Request | DTO class or param list | OrderCreateDTO |
-| Response | DTO class or type | OrderDTO |
-
-### RPC Services (adapter/api/rpc/)
-
-| Column | Content | Example |
-|--------|---------|---------|
-| Method | Java method name (business semantics) | createOrder |
-| Description | Javadoc first line | 创建订单 |
-| Params | param name + DTO type | dto: OrderCreateDTO |
-| Return | Return type | OrderDTO |
-
-> Method naming MUST use business semantics. MUST NOT use CRUD naming.
 
 ## Language Rule
 
