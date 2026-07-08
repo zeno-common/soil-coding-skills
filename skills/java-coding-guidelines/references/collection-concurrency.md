@@ -1,54 +1,56 @@
 # Collection & Concurrency
 
-## Collection
+## Collection Rules
 
-1. `ArrayList` for random access; `LinkedList` for frequent mid-list insert/delete.
-2. Initialize `ArrayList` with known capacity. ✅ `new ArrayList<>(expectedSize)`
-3. `subList()` returns a view — changes affect original. Don't cast to `ArrayList`.
-4. Map null rules: `HashMap` (key✅ value✅), `ConcurrentHashMap` (key❌ value❌), `Hashtable` (key❌ value❌), `TreeMap` (key❌ value✅).
-5. No add/remove in `foreach`. Use `Iterator` or `removeIf()`. ❌ `for (String item : list) { list.remove(item); }` ✅ `list.removeIf(item -> condition);`
-6. Use `Map.entrySet()` not `keySet()` when both key+value needed.
-7. No `<? extends T>` as return type for service interfaces.
-8. `toArray()`: use typed version. ✅ `list.toArray(new String[0])`
-9. `Arrays.asList()` returns fixed-size list — no add/remove. Use `new ArrayList<>(Arrays.asList(...))` for modifiable.
-10. Unmodifiable: `Collections.unmodifiableList()` or `List.of()` (Java 9+).
+| ID | Rule | Bad | Good |
+|----|------|-----|------|
+| CC01 | `ArrayList` for random access; `LinkedList` for frequent mid-list insert/delete | — | — |
+| CC02 | Initialize `ArrayList` with known capacity | `new ArrayList<>()` | `new ArrayList<>(expectedSize)` |
+| CC03 | `subList()` returns a view - changes affect original. Do not cast to `ArrayList` | — | — |
+| CC04 | Map null rules: `HashMap`(key:OK value:OK), `ConcurrentHashMap`(key:NO value:NO), `Hashtable`(key:NO value:NO), `TreeMap`(key:NO value:OK) | — | — |
+| CC05 | No add/remove in `foreach`. Use `Iterator` or `removeIf()` | `for (String item : list) { list.remove(item); }` | `list.removeIf(item -> condition);` |
+| CC06 | Use `Map.entrySet()` not `keySet()` when both key+value needed | — | — |
+| CC07 | No `<? extends T>` as return type for service interfaces | — | — |
+| CC08 | `toArray()`: use typed version | `list.toArray()` | `list.toArray(new String[0])` |
+| CC09 | `Arrays.asList()` returns fixed-size list - no add/remove. Use `new ArrayList<>(Arrays.asList(...))` for modifiable | — | — |
+| CC10 | Unmodifiable: `Collections.unmodifiableList()` or `List.of()` (Java 9+) | — | — |
 
-## Concurrency
+## Concurrency Rules
 
-11. Thread pools via `ThreadPoolExecutor` only. No `Executors` (OOM risk: unbounded queue/thread count).
-12. `SimpleDateFormat` is NOT thread-safe. Use `DateTimeFormatter` or `ThreadLocal<SimpleDateFormat>`.
-13. `ThreadLocal.remove()` after use, especially in thread pools.
-14. Consistent lock ordering across threads to avoid deadlock.
-15. Prefer `Lock` over `synchronized` for advanced features (tryLock, timed, interruptible). Use `synchronized` for simple cases.
-16. `ConcurrentHashMap` not `Hashtable` (obsolete).
-17. `CountDownLatch`: call `countDown()` in `finally` block.
-18. No `Thread.stop()` (deprecated/unsafe). Use `interrupt()` + `isInterrupted()`.
-19. `volatile` for shared flags (no atomicity for compound ops). Atomic counters: `AtomicInteger`/`AtomicLong`.
-20. Double-checked locking: instance must be `volatile`.
-21. Concurrent updates: optimistic locking (version field) to avoid lost updates.
-22. `ScheduledExecutorService` not `Timer` (Timer kills all tasks on one exception).
-23. `ForkJoinPool` for CPU-intensive divide-and-conquer.
-24. `CompletableFuture` over raw `Future`. Always specify executor, avoid `commonPool()`.
+| ID | Rule | Bad | Good |
+|----|------|-----|------|
+| CC11 | Thread pools via `ThreadPoolExecutor` only. No `Executors` (OOM risk: unbounded queue/thread count) | `Executors.newFixedThreadPool(10)` | `new ThreadPoolExecutor(...)` |
+| CC12 | `SimpleDateFormat` is NOT thread-safe. Use `DateTimeFormatter` or `ThreadLocal<SimpleDateFormat>` | static `SimpleDateFormat` | static `DateTimeFormatter` |
+| CC13 | `ThreadLocal.remove()` after use, especially in thread pools | — | — |
+| CC14 | Consistent lock ordering across threads to avoid deadlock | — | — |
+| CC15 | Prefer `Lock` over `synchronized` for advanced features (tryLock, timed, interruptible). Use `synchronized` for simple cases | — | — |
+| CC16 | `ConcurrentHashMap` not `Hashtable` (obsolete) | — | — |
+| CC17 | `CountDownLatch`: call `countDown()` in `finally` block | — | — |
+| CC18 | No `Thread.stop()` (deprecated/unsafe). Use `interrupt()` + `isInterrupted()` | — | — |
+| CC19 | `volatile` for shared flags (no atomicity for compound ops). Atomic counters: `AtomicInteger`/`AtomicLong` | — | — |
+| CC20 | Double-checked locking: instance must be `volatile` | — | — |
+| CC21 | Concurrent updates: optimistic locking (version field) to avoid lost updates | — | — |
+| CC22 | `ScheduledExecutorService` not `Timer` (Timer kills all tasks on one exception) | — | — |
+| CC23 | `ForkJoinPool` for CPU-intensive divide-and-conquer | — | — |
+| CC24 | `CompletableFuture` over raw `Future`. Always specify executor, avoid `commonPool()` | — | — |
 
-## Anti-Patterns
+## Examples
+
 ```java
-// ❌ Executors for thread pools
+// BAD: Executors for thread pools
 ExecutorService pool = Executors.newFixedThreadPool(10);
-// ❌ SimpleDateFormat as static field
+// BAD: SimpleDateFormat as static field
 private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-// ❌ foreach with remove
+// BAD: foreach with remove
 for (String item : list) { list.remove(item); }
-```
 
-## Corrected
-```java
-// ✅ ThreadPoolExecutor directly
+// GOOD: ThreadPoolExecutor directly
 ExecutorService pool = new ThreadPoolExecutor(10, 10, 60L, TimeUnit.SECONDS,
     new LinkedBlockingQueue<>(1000),
     new ThreadFactoryBuilder().setNameFormat("pool-%d").build(),
     new ThreadPoolExecutor.CallerRunsPolicy());
-// ✅ DateTimeFormatter (thread-safe)
+// GOOD: DateTimeFormatter (thread-safe)
 private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-// ✅ Iterator for removal
+// GOOD: Iterator for removal
 list.removeIf(item -> condition);
 ```
