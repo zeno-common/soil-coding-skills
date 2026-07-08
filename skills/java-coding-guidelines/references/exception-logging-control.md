@@ -7,7 +7,7 @@
 3. No business logic in catch — only log, wrap, rethrow.
 4. No `return` in finally block (overrides return/exception from try/catch).
 5. Use try-with-resources for `AutoCloseable`. ✅ `try (InputStream is = new FileInputStream("f")) { ... }`
-6. Preserve cause when rethrowing. ✅ `throw new BizException("msg", e)` ❌ `throw new BizException("msg")`
+6. Preserve cause when rethrowing. ✅ `throw new BaseException("msg", e)` ❌ `throw new BaseException("msg")`
 7. NPE prevention: `Objects.requireNonNull()` or `Optional`. Check null on method params.
 8. `RuntimeException` for business exceptions. Checked exceptions only for recoverable conditions.
 9. Use exceptions not return codes for errors. No exceptions for normal flow control.

@@ -35,13 +35,13 @@ public class Order extends AggregateRoot {
     private OrderStatus status;
 
     public void addItem(Product product, int quantity) {
-        if (this.status != OrderStatus.DRAFT) throw new BizException("ORDER_NOT_DRAFT", "只有草稿订单可添加商品");
+        if (this.status != OrderStatus.DRAFT) throw new BaseException("ORDER_NOT_DRAFT", "只有草稿订单可添加商品");
         this.items.add(new OrderItem(product, quantity));
         this.recalculateTotalAmount();
     }
 
     public void submit() {
-        if (this.items.isEmpty()) throw new BizException("ORDER_EMPTY", "订单不能为空");
+        if (this.items.isEmpty()) throw new BaseException("ORDER_EMPTY", "订单不能为空");
         this.status = OrderStatus.SUBMITTED;
         this.registerEvent(new OrderSubmittedEvent(this.orderId));
     }

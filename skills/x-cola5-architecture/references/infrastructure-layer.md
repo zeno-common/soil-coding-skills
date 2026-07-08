@@ -68,5 +68,5 @@ See `references/object-isolation.md` for full conversion rules.
 1. One GatewayImpl per Gateway interface
 2. Extract conversion to Converter class, keep GatewayImpl clean
 3. DO fields use wrapper types (`Long` not `long`)
-4. Client converts external exceptions to `BizException`
+4. Client converts external exceptions to `BaseException`
 5. Use MapStruct for Entity↔DO conversion
