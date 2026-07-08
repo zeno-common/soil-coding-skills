@@ -32,8 +32,8 @@ docs/jsf-skills/<module-name>-doc/
 ```
 
 包目录命名规则：Java 包名原样保留（含 `.`）作为单级目录名，**不要**按 `/` 拆分为多级子目录。
-- ✅ `io.soil.waf.config/`
-- ❌ `io/soil/waf/config/`
+- ✅ `<package-name>/`
+- ❌ `<package-name>/config/`
 
 ### 步骤 4：用户确认（⚠️ 必须等待，不可跳过）
 
@@ -55,7 +55,7 @@ docs/jsf-skills/<module-name>-doc/
 
 ### 步骤 5：输出 skill 文件
 
-1. skill 名称：`<模块名>-doc`（如 `jsf-waf-doc`）
+1. skill 名称：`<模块名>-doc`（如 `jsf-wsf-doc`）
 2. 输出路径：`docs/jsf-skills/<模块名>-doc/`
 3. SKILL.md — 入口文件，包含 frontmatter + 模块概述 + 类索引表 + 依赖引入信息
 4. references/`<package-name>`/`<ClassName>`.md — 每个类一个文件，按包分组
@@ -133,7 +133,7 @@ docs/jsf-skills/<module-name>-doc/
 |------|---------|
 | 步骤 4 输出摘要后直接写入文件 | 必须停止等待用户确认 |
 | 所有类塞进单个 SKILL.md | 按包结构拆分，每个类一个 .md 文件 |
-| 包目录按路径拆分为多级 | 包名原样作为单级目录名（如 `io.soil.waf.config/`） |
+| 包目录按路径拆分为多级 | 包名原样作为单级目录名（如 `<package-name>/`） |
 | 逐个列出 @Data 的 getter/setter | 一行概括"所有字段均有 getter/setter" |
 | Javadoc 原文照搬不浓缩 | 深度浓缩为精炼表达 |
 | 增量更新时全量重写 | 仅覆盖变更类的 .md 文件 |
