@@ -6,7 +6,7 @@
 
 ```
 app/src/main/java/{basePackage}/app
-└── {domain}/
+└── {biz}/
     ├── service/                 # 应用服务（用例入口）
     ├── executor/
     │   ├── command/             # 写操作执行器
@@ -26,8 +26,8 @@ app/src/main/java/{basePackage}/app
 | Query | `{Resource}{Action}Qry` | `OrderListQry` |
 | View Object | `{Resource}VO` | `OrderVO` |
 | Service | `{Domain}Service` | `OrderService` |
-| CmdExe | `{Action}{Resource}CmdExe` | `OrderCreateCmdExe` |
-| QryExe | `{Action}{Resource}QryExe` | `OrderListQryExe` |
+| CmdExe | `{Action}{Resource}CmdExe` | `CreateOrderCmdExe` |
+| QryExe | `{Action}{Resource}QryExe` | `ListOrderQryExe` |
 | Processor | `{ProcessDescription}Processor` | `OrderCreateProcessor` |
 | EventHandler | `{Domain}EventHandler` | `OrderEventHandler` |
 
