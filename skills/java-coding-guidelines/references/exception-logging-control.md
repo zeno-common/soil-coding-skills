@@ -137,6 +137,129 @@ public class GlobalExceptionHandler {
 1. **Anti-Corruption Layer (ACL) exception translation**: When calling external services from App or Infrastructure layer, the external service exception system may pollute our system. Must catch external exceptions at the boundary (typically in Infrastructure implementation classes), convert to internal `SysException` or `BizException`.
 2. **Transaction rollback**: Ensure custom exceptions extend `RuntimeException`, otherwise Spring `@Transactional` will not roll back by default.
 
+### 7. Exception Code Definition Rules (按层枚举 + 工厂模式)
+
+异常编码（error code）按 COLA 各架构分层**分别定义独立枚举**，每个枚举值携带 `code` + `message`，并作为**所在层异常类型的构建工厂**：通过工厂方法统一产出 `ParamException` / `BizException` / `SysException`，调用方只抛枚举、不 `new` 异常、不硬编码字符串。
+
+**定义规则：**
+
+1. **分层独立枚举**：每个 COLA 分层维护自己的异常编码枚举，归属清晰、互不混杂。
+2. **集中维护 code/message**：枚举值集中定义编码与提示文案，业务代码中禁止散落字符串字面量。
+3. **枚举即工厂**：每个枚举提供 `exception()`（无 cause）与 `exception(Throwable cause)`（带原始异常）工厂方法，构建对应层的异常类型。
+4. **编码命名格式**：`[LAYER]-[DOMAIN]-[SEQ]`，例如 `ADAPTER-PARAM-001`、`APP-ORDER-001`、`DOMAIN-ACCT-001`、`INFRA-DB-001`。**领域错误码**在 Domain 层枚举定义（表达领域规则），**系统错误码**在 Infrastructure 层枚举定义。
+5. **异常类型共享、编码前缀区分来源**：`BizException` 可由 App 层与 Domain 层枚举共同产出（二者均属业务语义），但编码前缀区分来源；`ParamException` 仅由 Adapter 层枚举产出，`SysException` 仅由 Infrastructure 层枚举产出。
+
+**基础异常与异常类型（复用 §1 定义）：**
+
+```java
+public abstract class BaseException extends RuntimeException {
+    private final String code;
+    protected BaseException(String code, String message) { super(message); this.code = code; }
+    protected BaseException(String code, String message, Throwable cause) { super(message, cause); this.code = code; }
+    public String getCode() { return code; }
+}
+
+public class ParamException extends BaseException {
+    public ParamException(String code, String message) { super(code, message); }
+    public ParamException(String code, String message, Throwable cause) { super(code, message, cause); }
+    public ExceptionType type() { return ExceptionType.PARAM; }
+}
+public class BizException extends BaseException {
+    public BizException(String code, String message) { super(code, message); }
+    public BizException(String code, String message, Throwable cause) { super(code, message, cause); }
+    public ExceptionType type() { return ExceptionType.BIZ; }
+}
+public class SysException extends BaseException {
+    public SysException(String code, String message) { super(code, message); }
+    public SysException(String code, String message, Throwable cause) { super(code, message, cause); }
+    public ExceptionType type() { return ExceptionType.SYS; }
+}
+```
+
+**各层异常编码枚举（每个枚举都是对应层异常类型的工厂）：**
+
+```java
+// Adapter 层：产出 ParamException
+public enum AdapterErrorCode {
+    INVALID_PARAM("ADAPTER-PARAM-IL", "{0}参数格式不合法"),
+    MISSING_REQUIRED("ADAPTER-PARAM-MISS", "{0}缺少必填参数");
+
+    private final String code;
+    private final String message;
+    AdapterErrorCode(String code, String message) { this.code = code; this.message = message; }
+
+    public ParamException exception() { return new ParamException(code, message); }
+    public ParamException exception(Throwable cause) { return new ParamException(code, message, cause); }
+}
+
+// App 层：产出 BizException（用例编排、前置条件不满足）
+public enum AppErrorCode {
+    PRECONDITION_NOT_MET("APP-ORDER-PC", "订单前置条件不满足"),
+    STEP_CONFLICT("APP-ORDER-SC", "编排步骤冲突");
+
+    private final String code;
+    private final String message;
+    AppErrorCode(String code, String message) { this.code = code; this.message = message; }
+
+    public WebBizException exception(Object... msgArgs) { return new WebBizException(HttpStatus.BAD_REQUEST, code, message, msgArgs); }
+    public WebBizException exception(Throwable cause, Object... msgArgs) { return new WebBizException(HttpStatus.CONFLICT, code, cause, message,msgArgs); }
+}
+
+// Domain 层：产出 BizException（领域不变量、领域规则）
+public enum DomainErrorCode {
+    INSUFFICIENT_BALANCE("DOMAIN-ACCT-IB", "余额不足"),
+    ILLEGAL_STATE_TRANSITION("DOMAIN-ACCT-IST", "非法状态流转");
+
+    private final String code;
+    private final String message;
+    DomainErrorCode(String code, String message) { this.code = code; this.message = message; }
+
+    public WebBizException exception(Object... msgArgs) { return new WebBizException(HttpStatus.BAD_REQUEST, code, message, msgArgs); }
+    public WebBizException exception(Throwable cause, Object... msgArgs) { return new WebBizException(HttpStatus.CONFLICT, code, cause, message,msgArgs); }
+}
+
+// Infrastructure 层：产出 SysException（技术异常包装）
+public enum InfrastructureErrorCode {
+    DB_ACCESS_FAILED("INFRA-DB-FA", "数据库访问失败"),
+    REDIS_CONNECTION_FAILED("INFRA-REDIS-CON", "Redis 连接失败");
+
+    private final String code;
+    private final String message;
+    InfrastructureErrorCode(String code, String message) { this.code = code; this.message = message; }
+
+    public SysException exception(Object... msgArgs) { return new SysException(code, message, msgArgs); }
+    public SysException exception(Throwable cause, Object... msgArgs) { return new SysException(code, cause, message,msgArgs); }
+}
+```
+
+**调用示例（各层只抛枚举，由枚举工厂构建异常）：**
+
+```java
+// Adapter 层
+if (request.getName() == null) {
+    throw AdapterErrorCode.MISSING_REQUIRED.exception("name");
+}
+
+// App 层
+try{
+    
+}catch(BizException be){
+    throw WebBizException.of(HttpStatus.BAD_REQUEST,be);
+}
+
+// Domain 层
+if (balance < amount) {
+    throw DomainErrorCode.INSUFFICIENT_BALANCE.exception("balance");
+}
+
+// Infrastructure 层：捕获底层技术异常，包装为 SysException
+try {
+    return jdbcTemplate.queryForObject(sql, mapper, id);
+} catch (SQLException e) {
+    throw InfrastructureErrorCode.DB_ACCESS_FAILED.exception(e, id);
+}
+```
+
 ## Logging Rules
 
 | ID | Rule | Bad | Good |
@@ -171,18 +294,18 @@ public class GlobalExceptionHandler {
 // BAD: Catching Exception broadly
 catch (Exception e) { }
 // BAD: String concatenation in log
-log.info("User " + userId + " logged in");
+        log.info("User " + userId + " logged in");
 // BAD: Swallowing business exception
 catch (BizException e) { /* nothing */ }
 // BAD: Logging only message, losing stack trace for system errors
-catch (SysException e) { log.error("Error: " + e.getMessage()); }
+        catch (SysException e) { log.error("Error: " + e.getMessage()); }
 
 // GOOD: Catch specific exception
-catch (IOException e) { log.error("IO error: {}", filePath, e); }
+        catch (IOException e) { log.error("IO error: {}", filePath, e); }
 // GOOD: Parameterized logging
-log.info("User {} logged in", userId);
+        log.info("User {} logged in", userId);
 // GOOD: Business exception: WARN, no full stack
 catch (BizException e) { log.warn("Business processing failed: {}", e.getMessage()); }
 // GOOD: System exception: ERROR with full stack trace
-catch (SysException e) { log.error("System exception: ", e); }
+        catch (SysException e) { log.error("System exception: ", e); }
 ```
