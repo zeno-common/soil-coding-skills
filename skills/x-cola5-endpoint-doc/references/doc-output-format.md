@@ -3,7 +3,7 @@
 ## File Structure
 
 ```
-docs/cola5-endpoints/
+docs/{project-name}-endpoints/
   web/
     {ClassName}.md          — one file per @RestController in adapter/controller/
   service/
