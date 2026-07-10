@@ -47,12 +47,12 @@ Error code `code` is managed as enums by domain, split into two parts: **`BizCod
 
 ### 2. Throwing Rules by Layer
 
-| Layer | Throw What | Rules |
-|-------|-----------|-------|
-| **Adapter** | `ParamException` | Throw on basic input validation failure (non-null, format). No business logic, no low-level technical exceptions (e.g. `SQLException`). |
-| **App** | `BizException` | No technical exceptions. Throw `BizException` when preconditions not met. When calling Domain/Infrastructure, typically do not catch or rethrow - let it bubble up. Wrap into higher-level business exception if needed. |
-| **Domain** | `BizException` | Must throw `BizException` when domain invariant violated (e.g. `if (balance < amount) throw new BizException("BIZ-ACCT-001", "Insufficient balance");`). Never throw technical exceptions (`SQLException`, `NullPointerException`). Common expected checks can return `boolean`/`Optional`; only throw exceptions for flow-blocking errors. |
-| **Infrastructure** | `SysException` / `BizException` | Must catch low-level technical exceptions (`SQLException`, `RedisConnectionException`, `HttpClientException`), wrap and convert to `SysException` (e.g. `catch (SQLException e) { throw new SysException("SYS-DB-001", "Database access failed", e); }`). External interface business errors convert to current domain `BizException`. |
+| Layer | Throw What | Rules                                                                                                                                                                                                                                                                                                                                        |
+|-------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Adapter** | `ParamException` | Throw on basic input validation failure (non-null, format). No business logic, no low-level technical exceptions (e.g. `SQLException`).                                                                                                                                                                                                      |
+| **App** | `BizException` | No technical exceptions. Throw `BizException` when preconditions not met. When calling Domain/Infrastructure, typically do not catch or rethrow - let it bubble up. Wrap into higher-level business exception if needed.                                                                                                                     |
+| **Domain** | `BizException` | Must throw `BizException` when domain invariant violated (e.g. `if (balance < amount) throw BizException.of(BIZ-ACCT-MISSING, "Insufficient balance");`). Never throw technical exceptions (`SQLException`, `NullPointerException`). Common expected checks can return `boolean`/`Optional`; only throw exceptions for flow-blocking errors. |
+| **Infrastructure** | `SysException` / `BizException` | Must catch low-level technical exceptions (`SQLException`, `RedisConnectionException`, `HttpClientException`), wrap and convert to `SysException` (e.g. `catch (SQLException e) { throw SysException.of(SYS-DB-ERROR, "Database access failed", e); }`). External interface business errors convert to current domain `BizException`.        |
 
 ### 3. Catching Rules by Layer
 
@@ -139,14 +139,14 @@ public class GlobalExceptionHandler {
 
 ### 7. Exception Code Definition Rules (按层枚举 + 工厂模式)
 
-异常编码（error code）按 COLA 各架构分层**分别定义独立枚举**，每个枚举值携带 `code` + `message`，并作为**所在层异常类型的构建工厂**：通过工厂方法统一产出 `ParamException` / `BizException` / `SysException`，调用方只抛枚举、不 `new` 异常、不硬编码字符串。
+异常编码（error code）按 COLA 各架构分层**分别定义独立枚举**，每个枚举值携带 `biz` + `error-name`，并作为**所在层异常类型的构建工厂**：通过工厂方法统一产出 `ParamException` / `BizException` / `SysException`，调用方只抛枚举、不 `new` 异常、不硬编码字符串。
 
 **定义规则：**
 
 1. **分层独立枚举**：每个 COLA 分层维护自己的异常编码枚举，归属清晰、互不混杂。
 2. **集中维护 code/message**：枚举值集中定义编码与提示文案，业务代码中禁止散落字符串字面量。
 3. **枚举即工厂**：每个枚举提供 `exception()`（无 cause）与 `exception(Throwable cause)`（带原始异常）工厂方法，构建对应层的异常类型。
-4. **编码命名格式**：`[BIZ]-[NAME]`，例如 `PARAM-MISSING`、`ORDER-TIME-OUT`、`ACCT-MISSING`、`INFRA-DB-FAILED`。**领域错误码**在 Domain 层枚举定义（表达领域规则），**系统错误码**在 Infrastructure 层枚举定义。
+4. **异常编码命名格式**：`[BIZ]-[NAME]`，例如 `PARAM-MISSING`、`ORDER-TIME-OUT`、`ACCT-MISSING`、`INFRA-DB-FAILED`。**领域错误码**在 Domain 层枚举定义（表达领域规则），**系统错误码**在 Infrastructure 层枚举定义。
 5. **异常类型共享、编码前缀区分来源**：`BizException` 可由 App 层与 Domain 层枚举共同产出（二者均属业务语义），但编码前缀区分来源；`ParamException` 仅由 Adapter 层枚举产出，`SysException` 仅由 Infrastructure 层枚举产出。
 
 **基础异常与异常类型（复用 §1 定义）：**

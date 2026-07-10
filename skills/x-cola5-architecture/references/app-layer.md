@@ -20,26 +20,53 @@ app/src/main/java/{basePackage}/app
 
 ## Naming
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| Command | `{Resource}{Action}Cmd` | `OrderCreateCmd` |
-| Query | `{Resource}{Action}Qry` | `OrderListQry` |
-| View Object | `{Resource}VO` | `OrderVO` |
-| Service | `{Domain}Service` | `OrderService` |
-| CmdExe | `{Action}{Resource}CmdExe` | `CreateOrderCmdExe` |
-| QryExe | `{Action}{Resource}QryExe` | `ListOrderQryExe` |
-| Processor | `{ProcessDescription}Processor` | `OrderCreateProcessor` |
-| EventHandler | `{Domain}EventHandler` | `OrderEventHandler` |
+| Type | Pattern | Example                  | Folder (under `app/{biz}/`) |
+|------|---------|--------------------------|-----------------------------|
+| Command | `{Resource}{Action}Cmd` | `OrderCreateCmd`         | `command/`                  |
+| Query | `{Resource}{Action}Qry` | `OrderListQry`           | `query/`                    |
+| View Object | `{Resource}VO` | `OrderVO`                | `vo/`                       |
+| Service | `{Domain}Service` | `OrderService`           | `service/`                  |
+| CmdExe | `{Resource}{Action}CmdExe` | `OrderCreateCmdExe`      | `executor/command/`         |
+| QryExe | `{Resource}{Action}QryExe` | `OrderListQryExe`        | `executor/query/`           |
+| Processor | `{ProcessDescription}Processor` | `ExpiredOrdersProcessor` | `processor/`                |
+| EventHandler | `{Domain}EventHandler` | `OrderEventHandler`      | `eventhandler/`             |
 
 ## Responsibilities
 
 | Component | Responsibility |
 |-----------|---------------|
 | Service | Use case entry, orchestrate domain services, `@Transactional`, persist then publish events |
-| CmdExe | Receive Cmd → convert to domain object → call domain service/Gateway → return VO |
-| QryExe | Receive Qry → may call Gateway directly → assemble paged response |
+| CmdExe (write) | Single `execute(Cmd)`; convert Cmd → domain object → call domain service/Gateway → return VO. MUST go through domain Gateway, MUST NOT touch Mapper directly. Translate Sys→Biz exceptions, compensation/degradation |
+| QryExe (read) | Single `execute(Qry)`; read-only data assembly & DTO conversion (may call Gateway directly). No complex business validation — validation belongs in domain |
 | Processor | Multi-step orchestration for complex use cases (optional) |
 | EventHandler | Handle events per domain aggregate, orchestrate domain services for follow-up |
+
+## CQRS Read/Write Separation
+
+| Aspect | CmdExe (Command / write) | QryExe (Query / read) |
+|--------|--------------------------|-----------------------|
+| Method | single `execute(Cmd)` | single `execute(Qry)` |
+| Data access | via domain Gateway only | via Gateway; may bypass domain service |
+| Business rules | orchestrate DomainService | none (assembly only) |
+| Mapping | 1 Cmd ↔ 1 CmdExe | 1 Qry ↔ 1 QryExe |
+
+```java
+@Component @RequiredArgsConstructor
+public class OrderCreateCmdExe {
+    public OrderVO execute(OrderCreateCmd cmd) {
+        // 1. convert Cmd → domain object
+        // 2. call DomainService / Gateway (never Mapper directly)
+        // 3. translate Sys→Biz exceptions, return VO
+    }
+}
+
+@Component @RequiredArgsConstructor
+public class OrderListQryExe {
+    public PagedResult<OrderVO> execute(OrderListQry qry) {
+        // read-only assembly via Gateway, no business validation
+    }
+}
+```
 
 ## Event Handling
 
@@ -60,6 +87,9 @@ app/src/main/java/{basePackage}/app
 6. Event handling MUST be in app.eventhandler — MUST NOT be in adapter listener or domain service
 7. One EventHandler per domain — MUST NOT create one handler per event
 8. In-process events: `@EventListener`; distributed events: called by adapter listener
+9. Each executor exposes a single `execute()` method — MUST NOT expose multiple public entry methods
+10. One Cmd ↔ one CmdExe, one Qry ↔ one QryExe (single responsibility) — MUST NOT merge multiple scenarios into one executor
+11. CmdExe (write) MUST access data via domain Gateway — MUST NOT operate Mapper/DO directly; QryExe (read) may bypass domain service via Gateway but MUST NOT touch Mapper directly
 
 ## Recommended
 
