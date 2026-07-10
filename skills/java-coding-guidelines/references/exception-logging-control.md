@@ -159,24 +159,28 @@ public abstract class BaseException extends RuntimeException {
         this.code = code;
     }
     public String getCode() { return code; }
+    public abstract ExceptionType type();
 }
 
 public class ParamException extends BaseException {
-    public ParamException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
-        super(code,throwable, msgPattern, msgArgs);
-    }
+    public static ParamException of(Error error, Object... descArgs) {...}
+    public static ParamException of(Throwable cause, Error error, Object... descArgs) {...}
     public ExceptionType type() { return ExceptionType.PARAM; }
 }
 public class BizException extends BaseException {
-    public BizException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
-        super(code,throwable, msgPattern, msgArgs);
-    }
+    public static BizException of(Error error, Object... descArgs) {...}
+    public static BizException of(Throwable cause, Error error, Object... descArgs) {...}
     public ExceptionType type() { return ExceptionType.BIZ; }
 }
+public class WebBizException extends BizException {
+    private final HttpStatus status;
+    public static BizException of(Error error, Object... descArgs) {...}
+    public static BizException of(Throwable cause, Error error, Object... descArgs) {...}
+    public HttpStatus status() { return status; }
+}
 public class SysException extends BaseException {
-    public SysException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
-        super(code,throwable, msgPattern, msgArgs);
-    }
+    public static SysException of(Error error, Object... descArgs) {...}
+    public static SysException of(Throwable cause, Error error, Object... descArgs) {...}
     public ExceptionType type() { return ExceptionType.SYS; }
 }
 ```
@@ -184,56 +188,23 @@ public class SysException extends BaseException {
 **各层异常编码枚举（每个枚举都是对应层异常类型的工厂）：**
 
 ```java
-// Adapter 层：产出 ParamException
-public enum Adapter[Biz]ErrorCode {
-    INVALID_PARAM("[BIZ]-PARAM-IL", "{0}参数格式不合法"),
-    MISSING_REQUIRED("[BIZ]-PARAM-MISS", "{0}缺少必填参数");
-
-    private final String code;
-    private final String message;
-    AdapterErrorCode(String code, String message) { this.code = code; this.message = message; }
-
-    public ParamException exception(Object... msgArgs) { return exception(null, msgArgs); }
-    public ParamException exception(Throwable cause, Object... msgArgs) { return new ParamException(code, cause, message, msgArgs); }
+public interface Error {
+    String code();
+    String desc();
 }
 
-// App 层：产出 BizException 应用业务异常（用例编排、前置条件不满足）
-public enum AppAdapter[Biz]ErrorCode {
-    PRECONDITION_NOT_MET("[BIZ]-ORDER-PC", "订单前置条件不满足"),
-    STEP_CONFLICT("[BIZ]-ORDER-SC", "编排步骤冲突");  
-
+public enum DomainOrderError implements Error {
+    NOT_FOUND("ORDER-NOT-FOUND", "订单 {0} 不存在"),
+    EXISTED("ORDER-EXISTED", "订单已存在");
+    
+    /** 错误字编串码 */
     private final String code;
-    private final String message;
-    AppErrorCode(String code, String message) { this.code = code; this.message = message; }
-
-    public WebBizException exception(Object... msgArgs) { return exception(null, msgArgs); }
-    public WebBizException exception(Throwable cause, Object... msgArgs) { return new WebBizException(HttpStatus.CONFLICT, code, cause, message,msgArgs); }
-}
-
-// Domain 层：产出 BizException 领域异常（领域不变量、领域规则）
-public enum [Domain]ErrorCode {
-    INSUFFICIENT_BALANCE("[Domain]-ACCT-IB", "余额不足"),
-    ILLEGAL_STATE_TRANSITION("[Domain]-ACCT-IST", "非法状态流转");
-
-    private final String code;
-    private final String message;
-    DomainErrorCode(String code, String message) { this.code = code; this.message = message; }
-
-    public BizException exception(Object... msgArgs) { return exception(null, msgArgs); }
-    public BizException exception(Throwable cause, Object... msgArgs) { return new BizException(code, cause, message,msgArgs); }
-}
-
-// Infrastructure 层(Optional,非必要不使用)：产出 SysException（技术异常包装）
-public enum InfrastructureErrorCode {
-    DB_ACCESS_FAILED("[Infrastructure]-DB-FA", "数据库访问失败"),
-    REDIS_CONNECTION_FAILED("[Infrastructure]-REDIS-CON", "Redis 连接失败");
-
-    private final String code;
-    private final String message;
-    InfrastructureErrorCode(String code, String message) { this.code = code; this.message = message; }
-
-    public SysException exception(Object... msgArgs) { return exception(null, msgArgs); }
-    public SysException exception(Throwable cause, Object... msgArgs) { return new SysException(code, cause, message,msgArgs); }
+    /** 错误描述（支持 MessageFormat 模板语法） */
+    private final String desc;
+    
+    OrderError(String code, String desc) { this.code = code; this.desc = desc; }
+    @Override public String code() { return code; }
+    @Override public String desc() { return desc; }
 }
 ```
 
@@ -242,7 +213,7 @@ public enum InfrastructureErrorCode {
 ```java
 // Adapter 层
 if (request.getName() == null) {
-    throw AdapterErrorCode.MISSING_REQUIRED.exception("name");
+    throw ParamException.of(DomainOrderError.MISSING_REQUIRED);
 }
 
 // App 层
@@ -254,14 +225,14 @@ try{
 
 // Domain 层
 if (balance < amount) {
-    throw DomainErrorCode.INSUFFICIENT_BALANCE.exception("balance");
+    throw BizException.of(DomainOrderError.INSUFFICIENT_BALANCE,balance,amount);
 }
 
 // Infrastructure 层 (Optional,菲必要不使用)：捕获底层技术异常，包装为 SysException
 try {
     return jdbcTemplate.queryForObject(sql, mapper, id);
 } catch (SQLException e) {
-    throw InfrastructureErrorCode.DB_ACCESS_FAILED.exception(e, id);
+    throw SysException.of(e, DomainOrderError.DB_ACCESS_FAILED, id);
 }
 ```
 
