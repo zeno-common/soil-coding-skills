@@ -154,24 +154,29 @@ public class GlobalExceptionHandler {
 ```java
 public abstract class BaseException extends RuntimeException {
     private final String code;
-    protected BaseException(String code, String message) { super(message); this.code = code; }
-    protected BaseException(String code, String message, Throwable cause) { super(message, cause); this.code = code; }
+    protected BaseException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
+        super(MessageFormat.format(msgPattern, msgArgs), throwable);
+        this.code = code;
+    }
     public String getCode() { return code; }
 }
 
 public class ParamException extends BaseException {
-    public ParamException(String code, String message) { super(code, message); }
-    public ParamException(String code, String message, Throwable cause) { super(code, message, cause); }
+    public ParamException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
+        super(code,throwable, msgPattern, msgArgs);
+    }
     public ExceptionType type() { return ExceptionType.PARAM; }
 }
 public class BizException extends BaseException {
-    public BizException(String code, String message) { super(code, message); }
-    public BizException(String code, String message, Throwable cause) { super(code, message, cause); }
+    public BizException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
+        super(code,throwable, msgPattern, msgArgs);
+    }
     public ExceptionType type() { return ExceptionType.BIZ; }
 }
 public class SysException extends BaseException {
-    public SysException(String code, String message) { super(code, message); }
-    public SysException(String code, String message, Throwable cause) { super(code, message, cause); }
+    public SysException(String code, Throwable throwable, String msgPattern, Object... msgArgs) {
+        super(code,throwable, msgPattern, msgArgs);
+    }
     public ExceptionType type() { return ExceptionType.SYS; }
 }
 ```
@@ -180,7 +185,7 @@ public class SysException extends BaseException {
 
 ```java
 // Adapter 层：产出 ParamException
-public enum AdapterErrorCode {
+public enum Adapter[Biz]ErrorCode {
     INVALID_PARAM("ADAPTER-PARAM-IL", "{0}参数格式不合法"),
     MISSING_REQUIRED("ADAPTER-PARAM-MISS", "{0}缺少必填参数");
 
@@ -188,12 +193,12 @@ public enum AdapterErrorCode {
     private final String message;
     AdapterErrorCode(String code, String message) { this.code = code; this.message = message; }
 
-    public ParamException exception() { return new ParamException(code, message); }
-    public ParamException exception(Throwable cause) { return new ParamException(code, message, cause); }
+    public ParamException exception(Object... msgArgs) { return exception(null, msgArgs); }
+    public ParamException exception(Throwable cause, Object... msgArgs) { return new ParamException(code, cause, message, msgArgs); }
 }
 
-// App 层：产出 BizException（用例编排、前置条件不满足）
-public enum AppErrorCode {
+// App 层：产出 BizException 应用业务异常（用例编排、前置条件不满足）
+public enum AppAdapter[Biz]ErrorCode {
     PRECONDITION_NOT_MET("APP-ORDER-PC", "订单前置条件不满足"),
     STEP_CONFLICT("APP-ORDER-SC", "编排步骤冲突");
 
@@ -201,12 +206,12 @@ public enum AppErrorCode {
     private final String message;
     AppErrorCode(String code, String message) { this.code = code; this.message = message; }
 
-    public WebBizException exception(Object... msgArgs) { return new WebBizException(HttpStatus.BAD_REQUEST, code, message, msgArgs); }
+    public WebBizException exception(Object... msgArgs) { return exception(null, msgArgs); }
     public WebBizException exception(Throwable cause, Object... msgArgs) { return new WebBizException(HttpStatus.CONFLICT, code, cause, message,msgArgs); }
 }
 
-// Domain 层：产出 BizException（领域不变量、领域规则）
-public enum DomainErrorCode {
+// Domain 层：产出 BizException 领域异常（领域不变量、领域规则）
+public enum [Domain]ErrorCode {
     INSUFFICIENT_BALANCE("DOMAIN-ACCT-IB", "余额不足"),
     ILLEGAL_STATE_TRANSITION("DOMAIN-ACCT-IST", "非法状态流转");
 
@@ -214,11 +219,11 @@ public enum DomainErrorCode {
     private final String message;
     DomainErrorCode(String code, String message) { this.code = code; this.message = message; }
 
-    public WebBizException exception(Object... msgArgs) { return new WebBizException(HttpStatus.BAD_REQUEST, code, message, msgArgs); }
-    public WebBizException exception(Throwable cause, Object... msgArgs) { return new WebBizException(HttpStatus.CONFLICT, code, cause, message,msgArgs); }
+    public BizException exception(Object... msgArgs) { return exception(null, msgArgs); }
+    public BizException exception(Throwable cause, Object... msgArgs) { return new BizException(code, cause, message,msgArgs); }
 }
 
-// Infrastructure 层(Optional,菲必要不使用)：产出 SysException（技术异常包装）
+// Infrastructure 层(Optional,非必要不使用)：产出 SysException（技术异常包装）
 public enum InfrastructureErrorCode {
     DB_ACCESS_FAILED("INFRA-DB-FA", "数据库访问失败"),
     REDIS_CONNECTION_FAILED("INFRA-REDIS-CON", "Redis 连接失败");
@@ -227,7 +232,7 @@ public enum InfrastructureErrorCode {
     private final String message;
     InfrastructureErrorCode(String code, String message) { this.code = code; this.message = message; }
 
-    public SysException exception(Object... msgArgs) { return new SysException(code, message, msgArgs); }
+    public SysException exception(Object... msgArgs) { return exception(null, msgArgs); }
     public SysException exception(Throwable cause, Object... msgArgs) { return new SysException(code, cause, message,msgArgs); }
 }
 ```
