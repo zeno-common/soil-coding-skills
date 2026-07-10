@@ -218,7 +218,7 @@ public enum DomainErrorCode {
     public WebBizException exception(Throwable cause, Object... msgArgs) { return new WebBizException(HttpStatus.CONFLICT, code, cause, message,msgArgs); }
 }
 
-// Infrastructure 层：产出 SysException（技术异常包装）
+// Infrastructure 层(Optional,菲必要不使用)：产出 SysException（技术异常包装）
 public enum InfrastructureErrorCode {
     DB_ACCESS_FAILED("INFRA-DB-FA", "数据库访问失败"),
     REDIS_CONNECTION_FAILED("INFRA-REDIS-CON", "Redis 连接失败");
@@ -252,7 +252,7 @@ if (balance < amount) {
     throw DomainErrorCode.INSUFFICIENT_BALANCE.exception("balance");
 }
 
-// Infrastructure 层：捕获底层技术异常，包装为 SysException
+// Infrastructure 层 (Optional,菲必要不使用)：捕获底层技术异常，包装为 SysException
 try {
     return jdbcTemplate.queryForObject(sql, mapper, id);
 } catch (SQLException e) {
@@ -273,22 +273,8 @@ try {
 | L07 | App logs >= 15 days. Error logs >= 30 days | — | — |
 | L08 | Log entry/exit of important service methods | — | — |
 
-## Control Flow Rules
 
-| ID | Rule | Bad | Good |
-|----|------|-----|------|
-| C01 | Every `switch` must have `default`. Every `case` ends with `break`/`return` or fall-through comment. Handle `null` on `String` switch | — | — |
-| C02 | Always use braces `{}` even for single-line blocks | `if (cond) doSomething();` | `if (cond) { doSomething(); }` |
-| C03 | No complex boolean in `if`. Extract to named variable | — | `boolean eligible = active && age >= 18; if (eligible) { ... }` |
-| C04 | Prefer positive conditions. No double negation | `if (!isNotValid)` | `if (isValid)` |
-| C05 | Ternary only for simple conditions. No nesting | — | — |
-| C06 | No `else` after `if` that returns | `if (c) { return a; } else { return b; }` | `if (c) { return a; } return b;` |
-| C07 | Max 3 nesting levels. Use guard clauses or extract methods | — | — |
-| C08 | Declare loop variables in for statement | — | `for (int i = 0; ...)` |
-| C09 | No modifying loop variable inside for body | — | — |
-| C10 | Enhanced for when index not needed. No foreach for modifying collection (use `Iterator`/`removeIf`) | — | — |
-
-## Examples
+### Examples
 
 ```java
 // BAD: Catching Exception broadly
@@ -309,3 +295,18 @@ catch (BizException e) { log.warn("Business processing failed: {}", e.getMessage
 // GOOD: System exception: ERROR with full stack trace
         catch (SysException e) { log.error("System exception: ", e); }
 ```
+
+## Control Flow Rules
+
+| ID | Rule | Bad | Good |
+|----|------|-----|------|
+| C01 | Every `switch` must have `default`. Every `case` ends with `break`/`return` or fall-through comment. Handle `null` on `String` switch | — | — |
+| C02 | Always use braces `{}` even for single-line blocks | `if (cond) doSomething();` | `if (cond) { doSomething(); }` |
+| C03 | No complex boolean in `if`. Extract to named variable | — | `boolean eligible = active && age >= 18; if (eligible) { ... }` |
+| C04 | Prefer positive conditions. No double negation | `if (!isNotValid)` | `if (isValid)` |
+| C05 | Ternary only for simple conditions. No nesting | — | — |
+| C06 | No `else` after `if` that returns | `if (c) { return a; } else { return b; }` | `if (c) { return a; } return b;` |
+| C07 | Max 3 nesting levels. Use guard clauses or extract methods | — | — |
+| C08 | Declare loop variables in for statement | — | `for (int i = 0; ...)` |
+| C09 | No modifying loop variable inside for body | — | — |
+| C10 | Enhanced for when index not needed. No foreach for modifying collection (use `Iterator`/`removeIf`) | — | — |
