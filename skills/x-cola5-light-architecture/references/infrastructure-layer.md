@@ -6,11 +6,9 @@
 
 ```
 app/src/main/java/{basePackage}/infrastructure     # Light：app 模块内的 infrastructure 包
-├── {domain1}/
-│   ├── gateway/impl/         # Gateway 实现
-│   ├── mapper/               # MyBatis Mapper
-│   └── dataobject/           # DO
-├── {domain2}/
+├── gateway/impl/         # Gateway 实现
+├── mapper/               # MyBatis Mapper
+├── dataobject/           # DO
 └── common/
     ├── client/               # 外部服务客户端
     ├── event/                # 事件发布实现

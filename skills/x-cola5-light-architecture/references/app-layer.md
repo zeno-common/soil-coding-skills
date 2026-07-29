@@ -6,16 +6,15 @@
 
 ```
 app/src/main/java/{basePackage}/application       # Light：app 模块内的 application 包
-└── {biz}/
-    ├── service/                 # 应用服务（用例入口）
-    ├── executor/
-    │   ├── command/             # 写操作执行器
-    │   └── query/               # 读操作执行器
-    ├── eventhandler/            # 领域事件处理器
-    ├── processor/               # 流程编排器（可选）
-    ├── command/                 # Cmd
-    ├── query/                  # Qry
-    └── vo/                      # VO
+├── service/                 # 应用服务（用例入口）
+├── executor/
+│   ├── command/             # 写操作执行器
+│   └── query/               # 读操作执行器
+├── eventhandler/            # 领域事件处理器
+├── processor/               # 流程编排器（可选）
+├── command/                 # Cmd
+├── query/                  # Qry
+└── vo/                      # VO
 ```
 
 ## Naming

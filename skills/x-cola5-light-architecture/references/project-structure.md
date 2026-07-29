@@ -9,14 +9,11 @@ project-name/                         # 聚合父模块（packaging=pom）
 │   └── src/main/java/{base}/client/
 │       ├── api/                      # 服务接口（含 @RequestMapping 等 HTTP 注解）
 │       └── dto/                      # 请求 / 响应 / 事件 DTO
-└── project-name-app/                 # 实现模块：Light 单模块 + 包级分层
-    ├── Application.java              # 根包启动类（Light 无独立 start 模块）
+└── project-name-core/                 # 实现模块：Light 单模块 + 包级分层
     └── src/main/java/{base}/
         ├── adapter/                  # 适配层：REST 控制器 implements client.api.*Api
         ├── application/              # 应用层：用例编排（不含契约）
         ├── domain/                   # 领域层：实体 / 领域服务 / gateway 接口
-        │   ├── <subdomain>/          # 按业务能力划分子包
-        │   └── gateway/              # 领域网关接口（由 infrastructure 实现）
         └── infrastructure/           # 基础设施层：gateway 实现 / Mapper / DO / 外部Client
 ```
 

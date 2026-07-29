@@ -6,13 +6,10 @@
 
 ```
 app/src/main/java/{basePackage}/domain           # Light：app 模块内的 domain 包
-├── {domain1}/
-│   ├── entity/               # 聚合根 / 实体 / 值对象
-│   ├── service/              # 领域服务
-│   ├── gateway/              # 网关接口（防腐层）
-│   └── event/                # 领域事件（可选）
-├── {domain2}/
-└── shared/event/             # 跨领域共享事件（可选）
+├── entity/               # 聚合根 / 实体 / 值对象
+├── service/              # 领域服务
+├── gateway/              # 网关接口（防腐层）
+└── event/                # 领域事件（可选）
 ```
 
 ## entity
