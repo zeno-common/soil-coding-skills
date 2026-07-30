@@ -1,6 +1,6 @@
 ---
 name: "x-cola5-light-architecture"
-description: "Enforces COLA 5 Light directory and layer conventions for Java projects, derived from cola-framework-archetype-light (single Maven module, package-level layering) with the API contract extracted as a standalone client module. Invoke when creating Java project structure, adding classes, deciding which layer a class belongs to, or reviewing architecture compliance."
+description: "COLA 5 Light architecture conventions for Java: single Maven module with package-level layered structure (adapter → application → domain ← infrastructure), derived from cola-framework-archetype-light, plus a standalone client contract module (API contract jar, independently publishable). Invoke when scaffolding or structuring a Java project, creating/adding/moving classes, deciding which layer a class belongs to, splitting API contracts into a client module, enforcing dependency direction (no adapter→infrastructure, domain/client depend on nothing, consumer depends on client jar only), or reviewing/auditing architecture compliance."
 ---
 
 # COLA 5 Light Architecture

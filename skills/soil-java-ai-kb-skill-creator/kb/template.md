@@ -11,13 +11,14 @@
 
 ## 模板 1：生成的 SKILL.md（能力 A 技能入口）
 
+
 ```markdown
 ---
-name: "<project>-ai-kb"
+name: "<project>"
 description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依赖坐标 / 模块使用配置 / 类调用。AI Agent 在需要调用本项目对外能力时加载。"
 ---
 
-# <Project> AI 知识库
+# <Project> 知识库
 
 本技能包含本项目对外能力的调用知识。使用方式：
 
@@ -25,8 +26,8 @@ description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依�
 2. 引入模块或更新模块配置时，读 `config.md` 了解模块使用配置
 3. 进入 `sdk/` 或 `rest/` 下类文档，按「类调用」生成调用代码（配置前置已在 `config.md` 完成）
 
-> 类文档无需重复依赖；其所属子模块的依赖统一见 [introduce.md#<子模块名>](introduce.md)，`<子模块名>` 即类文档所在目录名（如 `<submodule>/sdk/...` → `introduce.md#<submodule>`）。直接打开类文档时依此定位依赖。
-> REST 端点的 base path 前缀、`Bearer` 鉴权、CORS 为**系统级调用约定**，不重复于类文档（调用示例的 `curl` 已体现）；完整约定见项目 API 调用规范。
+> 依赖引入统一见 [introduce.md#<子模块名>](introduce.md)，`<子模块名>` 即调用文档所在目录名（如 `<submodule>/sdk/...` → `introduce.md#<submodule>`）。
+> 各子模块的模块使用配置见 `config.md`；完整约定见项目 API 调用规范。
 ```
 
 ---
