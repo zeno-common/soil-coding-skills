@@ -4,9 +4,8 @@
 > - 能力 B（README.md）模板见 `../readme/template.md`
 > - 产出规范见同目录 `./produce.md`
 >
-> 类调用知识（SDK/REST）仅含「类调用」一段；配置是类调用的前置条件，统一在 `config.md` 完成，不在类文档重复。依赖不内嵌、不逐类重复，统一见 `introduce.md`，由类文档所在子模块目录名定位锚点（`<submodule>/...` → `introduce.md#<submodule>`）。
+> 生成规则与关键约束（依赖集中 `introduce.md`、配置集中 `config.md`、类文档仅「类调用」、Maven-only、`@ai-doc` 准入）见同目录 `produce.md` §6/§7；本文件仅提供模板。
 > 标注 `(omit)` 的字段/段落，无对应内容时整段省略。
-> 依赖坐标仅给 Maven 片段（不提供 Gradle）。
 
 ---
 
@@ -15,14 +14,14 @@
 ```markdown
 ---
 name: "<project>-ai-kb"
-description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依赖引入 / 模块使用配置 / 类调用。AI Agent 在需要调用本项目对外能力时加载。"
+description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依赖坐标 / 模块使用配置 / 类调用。AI Agent 在需要调用本项目对外能力时加载。"
 ---
 
 # <Project> AI 知识库
 
 本技能包含本项目对外能力的调用知识。使用方式：
 
-1. 从 [introduce.md](introduce.md) 复制所需子模块的依赖引入
+1. 从 [introduce.md](introduce.md) 取所需子模块的 Maven 坐标，生成 `pom.xml` 的 `<dependency>`
 2. 引入模块或更新模块配置时，读 `config.md` 了解模块使用配置
 3. 进入 `sdk/` 或 `rest/` 下类文档，按「类调用」生成调用代码（配置前置已在 `config.md` 完成）
 
@@ -32,25 +31,19 @@ description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依�
 
 ---
 
-## 模板 2：introduce.md（统一说明 + 依赖引入）
+## 模板 2：introduce.md（统一说明 + 依赖坐标）
 
 ```markdown
-# 知识库总览与依赖引入
+# 知识库总览与依赖坐标
 
-> 各子模块的简要说明与依赖引入（每子模块一次，去重）。
+> 各子模块的简要说明与依赖坐标（每子模块一次，去重）。坐标按 Maven `groupId:artifactId:version` 生成 `pom.xml` 的 `<dependency>`。
 
 ## <submodule-A>
 
 <子模块一句话说明>
 
-### Maven
-```xml
-<dependency>
-  <groupId>com.example</groupId>
-  <artifactId>submodule-a</artifactId>
-  <version>1.0.0</version>
-</dependency>
-```
+### 依赖坐标（Maven）
+`com.example:submodule-a:1.0.0`
 
 ---
 
@@ -58,13 +51,8 @@ description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依�
 
 <子模块一句话说明>
 
-### Maven
-```xml
-<dependency>
-  <groupId>com.example</groupId>
-  <artifactId>submodule-b</artifactId>
-  <version>2.0.0</version>
-</dependency>
+### 依赖坐标（Maven）
+`com.example:submodule-b:2.0.0`
 ```
 ```
 
@@ -91,31 +79,6 @@ description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依�
 ## 前置依赖
 
 <模块级前置条件，如数据库、消息中间件、外部服务地址>
-
-## 类调用前置配置
-
-> 本模块各对外类的初始化与配置（yml 键 / `@Bean` / 端点级非约定项）。类文档仅含「类调用」，配置前置在此统一完成，避免逐类重复。
-
-### `SmsClient`（JAR SDK）
-- `application.yml`：
-```yaml
-example:
-  sdk:
-    endpoint: https://api.example.com
-    timeout-ms: 3000
-    access-key: ${EXAMPLE_ACCESS_KEY}
-```
-- 初始化 Bean（若需要）：
-```java
-@Bean
-public SmsClient smsClient() {
-    return new SmsClient().setEndpoint("https://api.example.com").setTimeout(3000);
-}
-```
-
-### `OrderApi`（Spring REST — Server）
-- 端点级非约定配置：<如 `@PreAuthorize("hasRole('ORDER_ADMIN')")`、`rate-limit: 100/min`>
-- （base path 前缀、`Bearer` 鉴权、CORS 见系统 API 调用约定，不在此列）
 ```
 
 ---

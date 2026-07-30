@@ -62,17 +62,12 @@ public class OrderApi { ... }
 按子模块分组，每个子模块一段：
 - 子模块简述（取模块 README / 模块名推断）
 - 依赖坐标：子模块 `pom.xml` 的 `groupId:artifactId:version`
-- 仅输出 Maven 片段（不提供 Gradle）
+- 仅输出 Maven 坐标（不提供 Gradle，不渲染 XML 片段）
 
-> 第三方依赖由 Maven/Gradle 传递解析，无需逐类声明；`introduce.md` 仅列出子模块自身坐标。
+> 第三方依赖由 Maven 传递解析，无需逐类声明；`introduce.md` 仅列出子模块自身坐标。
 
 ### 4.2 SDK 类调用知识（命中 `@ai-doc-sdk`）
 
-- **依赖**：不内嵌、不逐类重复；统一见 `introduce.md#<submodule>`，`<submodule>` = 类文档所在目录名（如 `<submodule>/sdk/...` → `introduce.md#<submodule>`）
-- **配置（前置，统一在 `config.md`）**：从 Javadoc / 构造器 / `init`·`setXxx` 提取，沉淀到 `<submodule>/config.md` 的「类调用前置配置」，不在类文档重复
-  - `application.yml` / `properties` 键
-  - `@Configuration` `@Bean` 初始化片段
-  - 超时、连接、密钥等必要参数
 - **类调用**：仅对外入口
   - public 构造器、被 `@ai-doc-sdk` 标记类的 public 方法（含 Lombok 生成的访问器，见 §4.5）
   - 每个入口：签名、参数（类型+含义）、返回值、可复制调用示例
@@ -80,8 +75,6 @@ public class OrderApi { ... }
 
 ### 4.3 REST 类调用知识 — 服务端（命中 `@ai-doc-rest`）
 
-- **依赖**：通常无需；若缺 `spring-boot-starter-web` 在 introduce.md 提示一次
-- **配置（前置，统一在 `config.md`）**：仅端点级非约定项（`@PreAuthorize` 特定角色、速率限制、自定义请求头）沉淀到 `config.md` 的「类调用前置配置」，不内嵌于类文档；类级 `@RequestMapping` 前缀、`Bearer` 鉴权头、CORS 等属**系统架构约定**，全文见系统 API 调用约定（如 `restful-convention` / 项目全局约定）
 - **类调用**（HTTP 视角）：每个端点的方法+完整路径（含路径参数）、路径/查询参数、请求体/响应类型、必需请求头、一段 `curl` 示例
   - 请求体/响应若为 POJO，按其字段展开为请求参数/返回信息（见 §4.6）
 
@@ -122,7 +115,7 @@ SDK / REST 入口的**参数或返回若为 POJO**，该 POJO 的字段必须作
 
 | 跳过内容 | 原因 |
 |----------|------|
-| 未带 `@ai-doc-sdk` / `@ai-doc-rest` 解析注解的类 | 非知识库对象（无标记即跳过，不做自动识别兜底） |
+| 未带 `@ai-doc-sdk` / `@ai-doc-rest` 解析注解的类 | 非知识库对象（见 §3 标识体系：无标记即跳过，不做自动识别兜底） |
 | `private` / package-private 成员（Lombok 生成的 public 访问器除外） | 外部不可调用 |
 | 无 HTTP 映射、非 SDK 公开面的方法 | 非对外入口 |
 | 未作为任何 `@ai-doc` 外部调用请求/响应的内部 DTO/实体 | 非外部调用所需（被引用 POJO 需展开字段，但 POJO 自身不单独成条目） |

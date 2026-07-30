@@ -23,8 +23,8 @@ description: "Java AI 知识库技能创建工具：分析整个 Java 工程的 
 | 条目 | 级别 | 文件 | 内容 |
 |------|------|------|------|
 | **技能入口** | Skill 级 | `SKILL.md` | 告诉 AI Agent 如何使用本知识库 |
-| **模块说明 + 依赖** | 子模块级（去重） | `introduce.md` | 各子模块简述 + 依赖引入（每子模块一次） |
-| **模块使用配置** | 子模块级 | `<submodule>/config.md` | 模块启用方式、yml 关键配置、类调用前置配置、前置依赖 |
+| **模块说明 + 依赖** | 子模块级（去重） | `introduce.md` | 各子模块简述 + 依赖坐标（每子模块一次） |
+| **模块使用配置** | 子模块级 | `<submodule>/config.md` | 模块启用方式、yml 关键配置、逐类接线（SDK 客户端 Bean / REST 端点级非约定项）、前置依赖 |
 | **SDK 类调用知识** | 类级 | `<submodule>/sdk/<pkg>/<Class>.md` | 类调用（配置前置在 config.md 完成，依赖见 introduce.md，由子模块目录名定位） |
 | **REST 类调用知识** | 类级 | `<submodule>/rest/<pkg>/<Class>.md` | 类调用（配置前置在 config.md 完成，依赖见 introduce.md，由子模块目录名定位） |
 
