@@ -33,10 +33,11 @@ description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依�
 
 ## 模板 2：introduce.md（统一说明 + 依赖坐标）
 
+> 各子模块的简要说明与依赖坐标（每子模块一次，去重）。坐标按 Maven `groupId:artifactId:version` 生成 `pom.xml` 的 `<dependency>`。
+
 ```markdown
 # 知识库总览与依赖坐标
 
-> 各子模块的简要说明与依赖坐标（每子模块一次，去重）。坐标按 Maven `groupId:artifactId:version` 生成 `pom.xml` 的 `<dependency>`。
 
 ## <submodule-A>
 
@@ -63,7 +64,7 @@ description: "<Project> 外部调用知识库：JAR SDK 与 Spring REST 的 依�
 ```markdown
 # <submodule> 模块使用配置
 
-> 依赖引入：见 [introduce.md](../../introduce.md#<submodule>)
+> 依赖引入：见 [introduce.md](../introduce.md#<submodule>)
 
 ## 启用与配置
 

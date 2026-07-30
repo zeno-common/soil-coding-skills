@@ -18,7 +18,7 @@
 ### 模式 A（生成 AI KB Skill）—— 输出为一个技能目录
 
 ```
-<KB_SKILL>/
+skills/<project-name>/
 ├── SKILL.md                      # 技能入口：告诉 AI Agent 如何使用本知识库
 ├── introduce.md                  # 统一说明：各子模块简述 + 依赖坐标（去重）
 ├── <submodule-A>/                # 独立知识模块目录
@@ -36,7 +36,7 @@
 
 统一说明文件，每个子模块一段，依赖去重。**依赖仅给 Maven 坐标**（不提供 Gradle，不渲染 XML 片段）。
 
-- 结构：每个子模块一段（`## <submodule>` + 一句话说明 + `### 依赖坐标（Maven）` 坐标行）
+- 结构：每个子模块一段（`## <submodule>` + 一句话说明 + `### 依赖坐标` 坐标行）
 - 锚点规则：以子模块名 `<submodule>` 作 `##` 标题锚点，供 config.md 与类文档 `#` 引用
 - 完整 Markdown 模板见 [template.md 模板 2](template.md)
 
