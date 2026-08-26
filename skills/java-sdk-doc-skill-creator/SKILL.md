@@ -24,7 +24,7 @@ description: "Read Java source, convert Javadoc into a coding-agent-friendly SDK
 输出目录结构（按代码包结构组织）：
 
 ```
-docs/jsf-skills/<module-name>-doc/
+skills/<module-name>-doc/
 ├── SKILL.md                              # 入口：frontmatter + 模块概述 + 类索引 + 依赖引入
 └── references/
     └── <package-name>/                   # 包名原样作为单级目录名（含点号）
@@ -55,8 +55,8 @@ docs/jsf-skills/<module-name>-doc/
 
 ### 步骤 5：输出 skill 文件
 
-1. skill 名称：`<模块名>-doc`（如 `jsf-wsf-doc`）
-2. 输出路径：`docs/jsf-skills/<模块名>-doc/`
+1. skill 名称：`<module-name>-doc`（如 `jsf-wsf-doc`）
+2. 输出路径：`skills/<module-name>-doc/`
 3. SKILL.md — 入口文件，包含 frontmatter + 模块概述 + 类索引表 + 依赖引入信息
 4. references/`<package-name>`/`<ClassName>`.md — 每个类一个文件，按包分组
 5. frontmatter description：`"Use when coding with <模块名> SDK, need API reference for <模块概要>."`
