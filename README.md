@@ -18,7 +18,7 @@ npx skills add zeno-common/soil-coding-skills --skill java-sdk-doc-skill-creator
 npx skills add zeno-common/soil-coding-skills --skill mysql-conventions -y
 npx skills add zeno-common/soil-coding-skills --skill restful-convention -y
 npx skills add zeno-common/soil-coding-skills --skill x-cola5-light-architecture -y
-npx skills add zeno-common/soil-coding-skills --skill soil-java-ai-kb-skill-creator -y
+npx skills add zeno-common/soil-coding-skills --skill soil-java-endpoint-skill-creator -y
 
 # 安装全部
 npx skills add zeno-common/soil-coding-skills --all
@@ -42,7 +42,7 @@ git submodule update --init --recursive
 | `java-sdk-doc-skill-creator` | SDK 文档 Skill 生成器 | 从 Java 源码生成可加载的 SDK 文档 skill |
 | `mysql-conventions` | MySQL 数据库设计、SQL 编写、ORM 规范 | 设计表结构、编写 SQL、使用 MyBatis/JPA |
 | `restful-convention` | RESTful API 设计规范 | 设计 REST API、编写 Controller、定义端点 |
-| `soil-java-ai-kb-skill-creator` | Java AI 知识库技能创建工具 | 分析 Java 工程，生成面向外部调用（JAR SDK / Spring REST）的知识库技能或标准 README |
+| `soil-java-endpoint-skill-creator` | Java endpoint doc skill 创建工具 | 分析 Java 工程，生成 AI Coding 调用的 endpoint 的 doc skill 或标准 README |
 
 ## 目录结构
 
@@ -102,7 +102,7 @@ soil-coding-skills/
 │           ├── http-methods.md
 │           ├── response-status.md
 │           └── versioning-filtering.md
-│   └── soil-java-ai-kb-skill-creator/  # Java AI 知识库技能创建工具
+│   └── soil-java-endpoint-skill-creator/  # Java endpoint doc skill 创建工具
 │       ├── SKILL.md
 │       ├── analyze.md
 │       ├── kb/

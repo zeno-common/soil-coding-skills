@@ -1,11 +1,11 @@
 ---
-name: "soil-java-ai-kb-skill-creator"
-description: "Java AI 知识库技能创建工具：分析整个 Java 工程的 *.java 文件，基于显式解析注解 @ai-doc-sdk / @ai-doc-rest（必带，无标记即跳过，不做自动识别兜底）与 Lombok 注解解析，生成面向外部调用（JAR SDK 与 Spring REST）的知识。提供两项可独立使用的能力：(A) 为整个 Java 工程生成一个 AI KB Skill（默认）；(B) 生成标准的 Java 工程 README.md。MANDATORY: 按顺序执行步骤。"
+name: "soil-java-endpoint-skill-creator"
+description: "Java endpoint doc skill 创建工具：分析整个 Java 工程的 *.java 文件，基于显式解析注解 @ai-doc-sdk / @ai-doc-rest（必带，无标记即跳过，不做自动识别兜底）与 Lombok 注解解析，生成面向外部调用（JAR SDK 与 Spring REST）的知识。提供两项可独立使用的能力：(A) 为 Java 工程生成 AI Coding 调用的 endpoint 的 doc skill（默认）；(B) 生成标准的 Java 工程 README.md。MANDATORY: 按顺序执行步骤。"
 ---
 
-# Java AI 知识库技能创建工具
+# Java endpoint doc skill 创建工具
 
-本 skill **为整个 Java 工程生成一个 AI KB Skill**（输出物是一个 AI 知识库技能；
+本 skill **为 Java 工程生成 AI Coding 调用的 endpoint 的 doc skill**（输出物是一个 AI Coding 调用的 endpoint 的 doc skill；
 整个 Java 工程是其知识来源）。工程根目录的每个子模块成为该技能内的一个**独立知识模块**。
 
 只沉淀 **外部调用** 所需内容：消费外部 JAR SDK、调用外部 Spring REST。
@@ -15,10 +15,10 @@ description: "Java AI 知识库技能创建工具：分析整个 Java 工程的 
 
 | 能力 | 产出 | 触发 | 默认 |
 |------|------|------|------|
-| **A. 生成 AI KB Skill** | 完整知识库技能：`SKILL.md` + `introduce.md` + 各子模块知识模块（模块使用配置 + 类调用知识） | 用户要求「生成 AI KB 技能 / 知识库」 | ✅ 默认执行 |
+| **A. 生成 endpoint doc skill** | 完整 endpoint doc skill：`SKILL.md` + `introduce.md` + 各子模块知识模块（模块使用配置 + 类调用知识） | 用户要求「生成 endpoint doc skill / 知识库」 | ✅ 默认执行 |
 | **B. 生成 README.md** | 标准的 Java 工程 README.md（项目简介 / 模块说明 / 环境 / 构建运行） | 用户要求「生成 README」 | |
 
-## 知识库条目模型（能力 A）
+## 条目模型（能力 A）
 
 | 条目 | 级别 | 文件 | 内容 |
 |------|------|------|------|
@@ -40,5 +40,5 @@ description: "Java AI 知识库技能创建工具：分析整个 Java 工程的 
 4. 若能力 B：生成标准 Java 工程 `README.md`
 5. 输出完成汇总（按所选能力的汇总表）
 
-调用时机：用户要求生成知识库 / AI KB 技能 / Java 工程 README / 外部调用文档，
-或提及「生成 Java AI 知识库」「生成 依赖引入/配置/类调用 文档」。
+调用时机：用户要求生成 endpoint doc skill / doc skill / Java 工程 README / 外部调用文档，
+或提及「生成 endpoint 的 doc skill」「生成 依赖引入/配置/类调用 文档」。
