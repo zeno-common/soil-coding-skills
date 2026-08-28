@@ -51,8 +51,8 @@ Error code `code` is managed as enums by domain, split into two parts: **`BizCod
 |-------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Adapter** | `ParamException` | Throw on basic input validation failure (non-null, format). No business logic, no low-level technical exceptions (e.g. `SQLException`).                                                                                                                                                                                                      |
 | **App** | `BizException` | No technical exceptions. Throw `BizException` when preconditions not met. When calling Domain/Infrastructure, typically do not catch or rethrow - let it bubble up. Wrap into higher-level business exception if needed.                                                                                                                     |
-| **Domain** | `BizException` | Must throw `BizException` when domain invariant violated (e.g. `if (balance < amount) throw BizException.of(BIZ-ACCT-MISSING, "Insufficient balance");`). Never throw technical exceptions (`SQLException`, `NullPointerException`). Common expected checks can return `boolean`/`Optional`; only throw exceptions for flow-blocking errors. |
-| **Infrastructure** | `SysException` / `BizException` | Must catch low-level technical exceptions (`SQLException`, `RedisConnectionException`, `HttpClientException`), wrap and convert to `SysException` (e.g. `catch (SQLException e) { throw SysException.of(SYS-DB-ERROR, "Database access failed", e); }`). External interface business errors convert to current domain `BizException`.        |
+| **Domain** | `BizException` | Must throw `BizException` when domain invariant violated (e.g. `if (balance < amount) throw BizException.of(DomainOrderError.INSUFFICIENT_BALANCE, balance, amount);`，枚举示例见 §7). Never throw technical exceptions (`SQLException`, `NullPointerException`). Common expected checks can return `boolean`/`Optional`; only throw exceptions for flow-blocking errors. |
+| **Infrastructure** | `SysException` / `BizException` | Must catch low-level technical exceptions (`SQLException`, `RedisConnectionException`, `HttpClientException`), wrap and convert to `SysException` (e.g. `catch (SQLException e) { throw SysException.of(e, InfraOrderError.DB_ACCESS_FAILED, id); }`，枚举示例见 §7). External interface business errors convert to current domain `BizException`.        |
 
 ### 3. Catching Rules by Layer
 
@@ -134,7 +134,7 @@ public class GlobalExceptionHandler {
 
 ### 6. Best Practices
 
-1. **Anti-Corruption Layer (ACL) exception translation**: When calling external services from App or Infrastructure layer, the external service exception system may pollute our system. Must catch external exceptions at the boundary (typically in Infrastructure implementation classes), convert to internal `SysException` or `BizException`.
+1. **Anti-Corruption Layer (ACL) exception translation**: When calling external services from App or Infrastructure layer, the external service exception system may pollute our system. Must catch external exceptions at the boundary (typically in Infrastructure implementation classes), convert to internal `SysException` or `BizException`. **（注：ACL 转译仅限 Infrastructure 实现类内部的外部系统调用；App 层编排时仍不捕获，异常直接向上冒泡以触发事务回滚——与 §3 App 层「通常 no catch」不矛盾。）**
 2. **Transaction rollback**: Ensure custom exceptions extend `RuntimeException`, otherwise Spring `@Transactional` will not roll back by default.
 
 ### 7. Exception Code Definition Rules (按层枚举 + 工厂模式)
@@ -158,30 +158,53 @@ public abstract class BaseException extends RuntimeException {
         super(MessageFormat.format(msgPattern, msgArgs), throwable);
         this.code = code;
     }
+    // ER8: 提供无 cause 重载，避免调用方强制传 null
+    protected BaseException(String code, String msgPattern, Object... msgArgs) {
+        this(code, null, msgPattern, msgArgs);
+    }
     public String getCode() { return code; }
     public abstract ExceptionType type();
 }
 
 public class ParamException extends BaseException {
-    public static ParamException of(Error error, Object... descArgs) {...}
-    public static ParamException of(Throwable cause, Error error, Object... descArgs) {...}
-    public ExceptionType type() { return ExceptionType.PARAM; }
+    public ParamException(Error error, Object... descArgs) { super(error.code(), error.desc(), descArgs); }
+    public ParamException(Throwable cause, Error error, Object... descArgs) { super(error.code(), cause, error.desc(), descArgs); }
+    public static ParamException of(Error error, Object... descArgs) { return new ParamException(error, descArgs); }
+    public static ParamException of(Throwable cause, Error error, Object... descArgs) { return new ParamException(cause, error, descArgs); }
+    @Override public ExceptionType type() { return ExceptionType.PARAM; }
 }
 public class BizException extends BaseException {
-    public static BizException of(Error error, Object... descArgs) {...}
-    public static BizException of(Throwable cause, Error error, Object... descArgs) {...}
-    public ExceptionType type() { return ExceptionType.BIZ; }
+    public BizException(Error error, Object... descArgs) { super(error.code(), error.desc(), descArgs); }
+    public BizException(Throwable cause, Error error, Object... descArgs) { super(error.code(), cause, error.desc(), descArgs); }
+    public static BizException of(Error error, Object... descArgs) { return new BizException(error, descArgs); }
+    public static BizException of(Throwable cause, Error error, Object... descArgs) { return new BizException(cause, error, descArgs); }
+    @Override public ExceptionType type() { return ExceptionType.BIZ; }
 }
+// ER4/ER5: WebBizException 携带 HttpStatus；工厂提供带 HttpStatus 的重载，便于 App 层转译时指定响应状态码
 public class WebBizException extends BizException {
     private final HttpStatus status;
-    public static BizException of(Error error, Object... descArgs) {...}
-    public static BizException of(Throwable cause, Error error, Object... descArgs) {...}
-    public HttpStatus status() { return status; }
+    public WebBizException(HttpStatus status, Error error, Object... descArgs) {
+        super(error, descArgs);
+        this.status = status;
+    }
+    public WebBizException(HttpStatus status, Throwable cause, Error error, Object... descArgs) {
+        super(cause, error, descArgs);
+        this.status = status;
+    }
+    public static WebBizException of(HttpStatus status, Error error, Object... descArgs) {
+        return new WebBizException(status, error, descArgs);
+    }
+    public static WebBizException of(HttpStatus status, Throwable cause, Error error, Object... descArgs) {
+        return new WebBizException(status, cause, error, descArgs);
+    }
+    @Override public HttpStatus status() { return status; }
 }
 public class SysException extends BaseException {
-    public static SysException of(Error error, Object... descArgs) {...}
-    public static SysException of(Throwable cause, Error error, Object... descArgs) {...}
-    public ExceptionType type() { return ExceptionType.SYS; }
+    public SysException(Error error, Object... descArgs) { super(error.code(), error.desc(), descArgs); }
+    public SysException(Throwable cause, Error error, Object... descArgs) { super(error.code(), cause, error.desc(), descArgs); }
+    public static SysException of(Error error, Object... descArgs) { return new SysException(error, descArgs); }
+    public static SysException of(Throwable cause, Error error, Object... descArgs) { return new SysException(cause, error, descArgs); }
+    @Override public ExceptionType type() { return ExceptionType.SYS; }
 }
 ```
 
@@ -195,44 +218,69 @@ public interface Error {
 
 public enum DomainOrderError implements Error {
     NOT_FOUND("ORDER-NOT-FOUND", "订单 {0} 不存在"),
-    EXISTED("ORDER-EXISTED", "订单已存在");
+    EXISTED("ORDER-EXISTED", "订单已存在"),
+    INSUFFICIENT_BALANCE("ORDER-INSUFFICIENT-BALANCE", "余额不足: 当前 {0}, 需 {1}");
     
-    /** 错误字编串码 */
+    /** 错误编码 */
     private final String code;
     /** 错误描述（支持 MessageFormat 模板语法） */
     private final String desc;
-    
-    OrderError(String code, String desc) { this.code = code; this.desc = desc; }
+
+    DomainOrderError(String code, String desc) { this.code = code; this.desc = desc; }
+    @Override public String code() { return code; }
+    @Override public String desc() { return desc; }
+}
+
+// Adapter 层枚举：仅产出 ParamException
+public enum AdapterOrderError implements Error {
+    MISSING_REQUIRED("ORDER-MISSING-REQUIRED", "订单参数缺失: {0}");
+
+    private final String code;
+    private final String desc;
+
+    AdapterOrderError(String code, String desc) { this.code = code; this.desc = desc; }
+    @Override public String code() { return code; }
+    @Override public String desc() { return desc; }
+}
+
+// Infrastructure 层枚举：产出 SysException（系统错误码）
+public enum InfraOrderError implements Error {
+    DB_ACCESS_FAILED("ORDER-DB-ACCESS-FAILED", "数据库访问失败: {0}");
+
+    private final String code;
+    private final String desc;
+
+    InfraOrderError(String code, String desc) { this.code = code; this.desc = desc; }
     @Override public String code() { return code; }
     @Override public String desc() { return desc; }
 }
 ```
 
-**调用示例（各层只抛枚举，由枚举工厂构建异常）：**
+**调用示例（各层只抛本层枚举，由枚举工厂构建异常，禁止跨层引用或硬编码字符串）：**
 
 ```java
-// Adapter 层
+// Adapter 层：仅由 Adapter 层枚举产出 ParamException（ER6 修正：不再引用 Domain 枚举）
 if (request.getName() == null) {
-    throw ParamException.of(DomainOrderError.MISSING_REQUIRED);
+    throw ParamException.of(AdapterOrderError.MISSING_REQUIRED, "name");
 }
 
-// App 层
-try{
-    
-}catch(BizException be){
-    throw WebBizException.of(HttpStatus.BAD_REQUEST,be);
+// App 层：转译业务异常并指定 HTTP 状态码（ER4 修正：使用 WebBizException 的 HttpStatus 重载）
+try {
+    // ...
+} catch (BizException be) {
+    throw WebBizException.of(HttpStatus.BAD_REQUEST, be, DomainOrderError.INSUFFICIENT_BALANCE);
 }
 
-// Domain 层
+// Domain 层：领域不变量违反，抛 BizException（使用 Domain 层枚举）
 if (balance < amount) {
-    throw BizException.of(DomainOrderError.INSUFFICIENT_BALANCE,balance,amount);
+    throw BizException.of(DomainOrderError.INSUFFICIENT_BALANCE, balance, amount);
 }
 
-// Infrastructure 层 (Optional,菲必要不使用)：捕获底层技术异常，包装为 SysException
+// Infrastructure 层（仅在必要时使用）：捕获底层技术异常，包装为 SysException（ER7 修正：使用 Infrastructure 层枚举）
 try {
     return jdbcTemplate.queryForObject(sql, mapper, id);
 } catch (SQLException e) {
-    throw SysException.of(e, DomainOrderError.DB_ACCESS_FAILED, id);
+    throw SysException.of(e, InfraOrderError.DB_ACCESS_FAILED, id);
 }
 ```
 

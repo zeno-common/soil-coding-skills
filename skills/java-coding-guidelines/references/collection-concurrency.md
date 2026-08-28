@@ -4,7 +4,7 @@
 
 | ID | Rule | Bad | Good |
 |----|------|-----|------|
-| CC01 | `ArrayList` for random access; `LinkedList` for frequent mid-list insert/delete | — | — |
+| CC01 | 禁用 `LinkedList`；随机访问用 `ArrayList`，队列/双端队列用 `ArrayDeque`，频繁中部增删优先 `ArrayList`（实测缓存局部性更优）或并发场景用 `CopyOnWriteArrayList` | `List<String> list = new LinkedList<>();` | `List<String> list = new ArrayList<>();` 或 `Deque<String> q = new ArrayDeque<>();` |
 | CC02 | Initialize `ArrayList` with known capacity | `new ArrayList<>()` | `new ArrayList<>(expectedSize)` |
 | CC03 | `subList()` returns a view - changes affect original. Do not cast to `ArrayList` | — | — |
 | CC04 | Map null rules: `HashMap`(key:OK value:OK), `ConcurrentHashMap`(key:NO value:NO), `Hashtable`(key:NO value:NO), `TreeMap`(key:NO value:OK) | — | — |

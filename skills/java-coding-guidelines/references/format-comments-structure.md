@@ -35,7 +35,7 @@
 | PS03 | Domain model suffixes: DO (DB table mapping), DTO (cross-layer transfer), VO (presentation), BO (business logic), QO (query params) |
 | PS04 | Package layout: `controller/ service/impl/ manager/ dao/ model/{entity,dto,vo,qo}/ config/ common/{constant,enums,exception,util}/ interceptor/` |
 | PS05 | Dependencies flow downward only. No circular deps. No Controller->DAO bypass |
-| PS06 | Exception handling per layer: Controller -> HTTP response; Service -> BusinessException; Manager -> wrap third-party; DAO -> DAOException |
+| PS06 | 分层异常处理对齐：Controller/Adapter -> 交由全局处理器统一转 HTTP 响应（抛 `ParamException`）；Service/App -> 抛 `BizException`；Infrastructure -> 捕获底层技术异常包装为 `SysException`（外部业务错误转 `BizException`）。 |
 | PS07 | Config via `application.yml`. No hardcoded values. Spring profiles for environments |
 
 ## Examples

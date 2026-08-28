@@ -20,11 +20,8 @@
 | O14 | `final` on classes not designed for inheritance; on params/locals that should not be reassigned | — | — |
 | O15 | No `+` string concat in loops. Use `StringBuilder` | — | — |
 | O16 | `BigDecimal` comparison: use `compareTo()` not `equals()` | `1.0.equals(1.00)` (false) | `1.0.compareTo(1.00) == 0` (true) |
-| O17 | `subList()` returns a view - modifying it affects original. Do not cast to `ArrayList` | — | — |
-| O18 | `toArray()`: use typed version | `list.toArray()` | `list.toArray(new String[0])` |
-| O19 | Use `Map.entrySet()` not `keySet()` when both key+value needed | — | — |
-| O20 | Avoid `instanceof` + cast. Use polymorphism | — | — |
-| O21 | Call `ThreadLocal.remove()` after use to prevent memory leaks in thread pools | — | — |
+| O17 | Avoid `instanceof` + cast. Use polymorphism | — | — |
+| O18 | Call `ThreadLocal.remove()` after use to prevent memory leaks in thread pools | — | — |
 
 ## Examples
 
