@@ -1,13 +1,6 @@
-
-# 目录结构
-```
-./skills/<module-name>-doc/
-├── SKILL.md   # 入口文件
-```
-
 # SKILL.md 模板
 
-入口文件模板，位于 `skills/<module-name>-doc/SKILL.md`。
+入口文件模板，位于 `./skills/<module-name>-doc/SKILL.md`。
 
 ```markdown
 ---

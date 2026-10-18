@@ -1,15 +1,6 @@
-# 目录结构
-```
-./skills/<module-name>-doc/
-└── references/
-    └── <package-name>/
-        └── <ClassName>.md               # 每个类一个文件（见 class-template.md）
-```
-
-
 # 类文档模板
 
-每个类一个文件，位于 `references/<package-name>/<ClassName>.md`。
+每个类一个文件，位于 `./skills/<module-name>-doc/references/<package-name>/<ClassName>.md`。
 
 ```markdown
 # ClassName
