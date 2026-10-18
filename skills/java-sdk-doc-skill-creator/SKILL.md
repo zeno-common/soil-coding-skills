@@ -35,7 +35,7 @@ skills/<module-name>-doc/
 - ✅ `<package-name>/`
 - ❌ `<package-name>/config/`
 
-### 步骤 4：用户确认（⚠️ 必须等待，不可跳过）
+### 步骤 4：用户确认
 
 输出摘要表后**必须停止，等待用户回复**：
 
@@ -55,14 +55,12 @@ skills/<module-name>-doc/
 
 ### 步骤 5：输出 skill 文件
 
-1. skill 名称：`<module-name>-doc`（如 `jsf-wsf-doc`）
-2. 输出路径：`skills/<module-name>-doc/`
-3. SKILL.md — 入口文件，包含 frontmatter（name + description + version）+ 模块概述 + 类索引表 + 依赖引入信息
-4. references/`<package-name>`/`<ClassName>`.md — 每个类一个文件，按包分组
-5. frontmatter description：`"Use when coding with <模块名> SDK, need API reference for <模块概要>."`
-6. frontmatter version：SDK 的版本号，取自 SDK 模块 `pom.xml` 的 `<version>`（如 `1.2.0`）
+完整输出模板和格式规则详见如下模板：
 
-> 📖 完整输出模板和格式规则详见 [references/output-template.md](references/output-template.md)
+| 模板 | 用途 | 文件 |
+|------|------|------|
+| SKILL.md 模板 | 入口文件（frontmatter + 模块概述 + 依赖引入 + 类索引） | [skill-template.md](references/skill-template.md) |
+| 类文档模板 | 每个类一个文件，记录 API 详情 | [class-template.md](references/class-template.md) |
 
 ### 步骤 6：增量更新（已有 skill 时）
 
@@ -132,10 +130,5 @@ skills/<module-name>-doc/
 
 | 错误 | 正确做法 |
 |------|---------|
-| 步骤 4 输出摘要后直接写入文件 | 必须停止等待用户确认 |
-| 所有类塞进单个 SKILL.md | 按包结构拆分，每个类一个 .md 文件 |
-| 包目录按路径拆分为多级 | 包名原样作为单级目录名（如 `<package-name>/`） |
-| 逐个列出 @Data 的 getter/setter | 一行概括"所有字段均有 getter/setter" |
-| Javadoc 原文照搬不浓缩 | 深度浓缩为精炼表达 |
-| 增量更新时全量重写 | 仅覆盖变更类的 .md 文件 |
 | 输出文件带 BOM 头 | 所有文件必须 UTF-8 无 BOM 编码 |
+
