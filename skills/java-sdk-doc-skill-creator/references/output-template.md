@@ -6,7 +6,6 @@
 .trae/skills/<module-name>-sdk/
 ├── SKILL.md                              # 入口文件
 └── references/
-    ├── output-template.md                # 本文件（输出模板和格式规则）
     └── <package-name>/                   # 包名原样作为单级目录名
         └── <ClassName>.md               # 每个类一个文件
 ```
@@ -17,6 +16,7 @@
 ---
 name: "<module>-sdk"
 description: "Use when coding with <module> SDK, need API reference for <module summary>."
+version: "<sdk-version>"
 ---
 
 # <模块名> SDK 参考
@@ -25,11 +25,11 @@ description: "Use when coding with <module> SDK, need API reference for <module 
 
 ## 依赖引入
 
-java maven 工程的依赖引入参考：'[jsf-bom/README.md](../../jsf-bom/README.md)'
+<bom 的引入方式>
 
-| ArtifactId | 说明 |
-|-----------|------|
-| `<artifactId>` | <一句话描述> |
+| GroupId | ArtifactId |
+|---------|-----------|
+| `<groupId>` | `<artifactId>` | 
 
 ## 类索引
 
@@ -100,7 +100,7 @@ ClassName obj = ClassName.builder()
 
 ## 格式规则
 
-1. **SKILL.md 为入口** — 包含 frontmatter + 模块概述 + 依赖引入 + 类索引表（含文档链接）
+1. **SKILL.md 为入口** — 包含 frontmatter（`name` + `description` + `version`）+ 模块概述 + 依赖引入 + 类索引表（含文档链接）；`version` 取自 SDK 模块 `pom.xml` 的 `<version>`
 2. **每个类独立文件** — 位于 `references/<package-name>/<ClassName>.md`
 3. **包名单级目录** — 包名原样作为目录名（如 `<package-name>/`），不拆分为多级
 4. **类文档标题层级** — 类用 `#`，方法用 `##`，构造/字段/枚举用 `##`

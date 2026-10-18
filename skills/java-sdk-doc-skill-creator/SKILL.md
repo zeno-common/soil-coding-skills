@@ -57,9 +57,10 @@ skills/<module-name>-doc/
 
 1. skill 名称：`<module-name>-doc`（如 `jsf-wsf-doc`）
 2. 输出路径：`skills/<module-name>-doc/`
-3. SKILL.md — 入口文件，包含 frontmatter + 模块概述 + 类索引表 + 依赖引入信息
+3. SKILL.md — 入口文件，包含 frontmatter（name + description + version）+ 模块概述 + 类索引表 + 依赖引入信息
 4. references/`<package-name>`/`<ClassName>`.md — 每个类一个文件，按包分组
 5. frontmatter description：`"Use when coding with <模块名> SDK, need API reference for <模块概要>."`
+6. frontmatter version：SDK 的版本号，取自 SDK 模块 `pom.xml` 的 `<version>`（如 `1.2.0`）
 
 > 📖 完整输出模板和格式规则详见 [references/output-template.md](references/output-template.md)
 
